@@ -62,6 +62,11 @@ public:
    */
   void SetDeviceName (std::string deviceName);
 
+  /**
+   * Set the device in DPDK mode.
+   */
+  void SetDPDKMode (int argc, char **argv);
+
 protected:
 
   /**
@@ -89,6 +94,21 @@ protected:
    * The unix/linux name of the underlying device (e.g., eth0)
    */
   std::string m_deviceName;
+
+  /**
+   * The dpdk mode of the device.
+   */
+  bool m_dpdkMode;
+
+  /**
+   * DPDK EAL arguements count.
+   */
+  int m_ealArgc;
+
+  /**
+   * DPDK EAL arguements list.
+   */
+  char **m_ealArgv;
 };
 
 } // namespace ns3

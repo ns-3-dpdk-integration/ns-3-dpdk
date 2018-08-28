@@ -6,7 +6,7 @@ from waflib import Options
 
 def options(opt):
     opt.add_option('--force-planetlab',
-                   help=('Forces compilation of PlanetLab even if not suported by the local system'),
+                   help=('Forces compilation of PlanetLab even if not supported by the local system'),
                    dest='force_planetlab', default=False, action="store_true")
 
 def configure(conf):
@@ -112,6 +112,7 @@ def build(bld):
         'helper/fd-net-device-helper.cc',
         'helper/encode-decode.cc',
         'helper/creator-utils.cc',
+        'model/dpdk-net-device.cc',
         ]
 
     headers = bld(features='ns3header')
@@ -119,6 +120,7 @@ def build(bld):
     headers.source = [
         'model/fd-net-device.h',
         'helper/fd-net-device-helper.h',
+        'model/dpdk-net-device.h',
         ]
 
     if bld.env['ENABLE_TAP']:
@@ -181,6 +183,22 @@ def build(bld):
 
     if bld.env['ENABLE_EXAMPLES']:
         bld.recurse('examples')
+
+    assert os.environ.get('RTE_SDK', '') != '', "RTE_SDK environment variable not set"
+    assert os.environ.get('RTE_TARGET', '') != '', "RTE_TARGET environment variable not set"
+
+    dpdk_build = os.path.join(os.environ['RTE_SDK'], os.environ['RTE_TARGET'])
+    if os.environ.get('LD_LIBRARY_PATH', '') == '':
+        os.environ['LD_LIBRARY_PATH'] = os.path.join(dpdk_build, 'lib')
+    else
+        os.environ['LD_LIBRARY_PATH'] += ':' + os.path.join(dpdk_build, 'lib')
+    
+    module.env.append_value("CXXFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
+    module.env.append_value("LINKFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
+    module.env.append_value("LINKFLAGS", ['-L' + os.path.join(dpdk_build, 'lib')])
+    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_eal')
+    module.env.append_value ('SHLIB_MARKER', '-Wl,-lnuma')
+    module.env.append_value ('SHLIB_MARKER', '-Wl,-ldl')
 
     bld.ns3_python_bindings()
 

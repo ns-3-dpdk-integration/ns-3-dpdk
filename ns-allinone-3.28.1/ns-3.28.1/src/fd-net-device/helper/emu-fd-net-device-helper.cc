@@ -53,6 +53,9 @@
 
 #include <string>
 
+#include <rte_eal.h>
+#include <rte_common.h>
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("EmuFdNetDeviceHelper");
@@ -62,12 +65,22 @@ NS_LOG_COMPONENT_DEFINE ("EmuFdNetDeviceHelper");
 EmuFdNetDeviceHelper::EmuFdNetDeviceHelper ()
 {
   m_deviceName = "undefined";
+  m_dpdkMode = false;
 }
 
 void
 EmuFdNetDeviceHelper::SetDeviceName (std::string deviceName)
 {
   m_deviceName = deviceName;
+}
+
+void
+EmuFdNetDeviceHelper::SetDPDKMode (int argc, char **argv)
+{
+  FdNetDeviceHelper::SetTypeId ("ns3::DPDKNetDevice");
+  m_dpdkMode = true;
+  m_ealArgc = argc;
+  m_ealArgv = argv;
 }
 
 std::string
@@ -187,6 +200,15 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
  
   close (mtufd);
   device->SetMtu (ifr.ifr_mtu);
+
+  if (m_dpdkMode)
+    {
+      // close (fd);
+      // Initialize DPDK EAL
+      int ret = rte_eal_init(m_ealArgc, m_ealArgv);
+      if (ret < 0)
+          rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
+    }
 }
 
 int

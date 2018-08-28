@@ -54,6 +54,8 @@ public:
   {
   }
 
+  void SetTypeId (std::string type);
+
   /**
    * \param n1 the name of the attribute to set
    * \param v1 the value of the attribute to set
