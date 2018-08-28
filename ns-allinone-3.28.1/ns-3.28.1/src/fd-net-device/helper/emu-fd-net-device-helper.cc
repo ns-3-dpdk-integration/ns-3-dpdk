@@ -207,7 +207,9 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
       // Initialize DPDK EAL
       int ret = rte_eal_init(m_ealArgc, m_ealArgv);
       if (ret < 0)
+        {
           rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
+        }
     }
 }
 

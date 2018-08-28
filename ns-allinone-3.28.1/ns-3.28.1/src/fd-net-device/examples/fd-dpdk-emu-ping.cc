@@ -108,7 +108,13 @@ main (int argc, char *argv[])
 
   // set the dpdk emulation mode
   char **ealArgv = new char*[20];
-  emu.SetDPDKMode (1, ealArgv);
+  ealArgv[0] = new char[20];
+  strcpy(ealArgv[0], "");
+  ealArgv[1] = new char[20];
+  strcpy(ealArgv[1], "-l");
+  ealArgv[2] = new char[20];
+  strcpy(ealArgv[2], "0");
+  emu.SetDPDKMode (3, ealArgv);
 
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);

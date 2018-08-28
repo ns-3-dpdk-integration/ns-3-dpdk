@@ -190,9 +190,9 @@ def build(bld):
     dpdk_build = os.path.join(os.environ['RTE_SDK'], os.environ['RTE_TARGET'])
     if os.environ.get('LD_LIBRARY_PATH', '') == '':
         os.environ['LD_LIBRARY_PATH'] = os.path.join(dpdk_build, 'lib')
-    else
+    else:
         os.environ['LD_LIBRARY_PATH'] += ':' + os.path.join(dpdk_build, 'lib')
-    
+
     module.env.append_value("CXXFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
     module.env.append_value("LINKFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
     module.env.append_value("LINKFLAGS", ['-L' + os.path.join(dpdk_build, 'lib')])
