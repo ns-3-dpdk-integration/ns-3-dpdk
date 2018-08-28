@@ -36,6 +36,15 @@ public:
    * Constructor for the NetmapNetDevice.
    */
   DPDKNetDevice ();
+
+  /**
+   * Initialize DPDK.
+   * Initializes EAL.
+   *
+   * \param argc DPDK EAL args count.
+   * \param argv DPDK EAL args list.
+   */
+  void InitDPDK (int argc, char** argv);
 };
 
 } // 

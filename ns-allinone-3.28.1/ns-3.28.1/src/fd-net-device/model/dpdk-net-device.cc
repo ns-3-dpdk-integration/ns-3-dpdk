@@ -13,6 +13,9 @@
 
 #include <poll.h>
 
+#include <rte_eal.h>
+#include <rte_common.h>
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DPDKNetDevice");
@@ -33,6 +36,17 @@ DPDKNetDevice::GetTypeId (void)
 DPDKNetDevice::DPDKNetDevice ()
 {
   NS_LOG_FUNCTION (this);
+}
+
+void
+DPDKNetDevice::InitDPDK (int argc, char** argv)
+{
+  // Initialize DPDK EAL
+  int ret = rte_eal_init(argc, argv);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
+    }
 }
 
 } // namespace ns3

@@ -53,8 +53,7 @@
 
 #include <string>
 
-#include <rte_eal.h>
-#include <rte_common.h>
+#include "ns3/dpdk-net-device.h"
 
 namespace ns3 {
 
@@ -204,12 +203,8 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
   if (m_dpdkMode)
     {
       // close (fd);
-      // Initialize DPDK EAL
-      int ret = rte_eal_init(m_ealArgc, m_ealArgv);
-      if (ret < 0)
-        {
-          rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
-        }
+      Ptr<DPDKNetDevice> dpdkDevice = StaticCast<DPDKNetDevice> (device);
+      dpdkDevice->InitDPDK (m_ealArgc, m_ealArgv);
     }
 }
 

@@ -64,6 +64,9 @@ public:
 
   /**
    * Set the device in DPDK mode.
+   *
+   * \param argc DPDK EAL args count.
+   * \param argv DPDK EAL args list.
    */
   void SetDPDKMode (int argc, char **argv);
 
