@@ -107,6 +107,14 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
       NS_FATAL_ERROR ("EmuFdNetDeviceHelper::SetFileDescriptor (): m_deviceName is not set");
     }
 
+  if (m_dpdkMode)
+    {
+      Ptr<DPDKNetDevice> dpdkDevice = StaticCast<DPDKNetDevice> (device);
+      dpdkDevice->SetDeviceName (m_deviceName);
+      dpdkDevice->InitDPDK (m_ealArgc, m_ealArgv);
+      return;
+    }
+
   //
   // Call out to a separate process running as suid root in order to get a raw
   // socket.  We do this to avoid having the entire simulation running as root.
@@ -199,13 +207,6 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
  
   close (mtufd);
   device->SetMtu (ifr.ifr_mtu);
-
-  if (m_dpdkMode)
-    {
-      // close (fd);
-      Ptr<DPDKNetDevice> dpdkDevice = StaticCast<DPDKNetDevice> (device);
-      dpdkDevice->InitDPDK (m_ealArgc, m_ealArgv);
-    }
 }
 
 int

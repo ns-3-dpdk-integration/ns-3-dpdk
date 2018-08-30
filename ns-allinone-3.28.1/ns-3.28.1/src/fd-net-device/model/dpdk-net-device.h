@@ -45,6 +45,25 @@ public:
    * \param argv DPDK EAL args list.
    */
   void InitDPDK (int argc, char** argv);
+
+  /**
+   * Set device name.
+   * 
+   * \param deviceName The device name.
+   */
+  void SetDeviceName(std::string deviceName);
+
+protected:
+
+  /**
+   * The port number of the device to be used.
+   */
+  uint16_t m_portId;
+
+  /**
+   * The device name;
+   */
+  std::string m_deviceName;
 };
 
 } // 

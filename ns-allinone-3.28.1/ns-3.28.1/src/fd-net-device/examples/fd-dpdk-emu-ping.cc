@@ -43,7 +43,7 @@ main (int argc, char *argv[])
 {
   NS_LOG_INFO ("DPDK Emulation Ping Example");
 
-  std::string deviceName ("enp0s3");
+  std::string deviceName ("0000:00:11.0");
   // ping a real host connected back-to-back through the ethernet interfaces
   std::string remote ("10.0.1.2");
 
