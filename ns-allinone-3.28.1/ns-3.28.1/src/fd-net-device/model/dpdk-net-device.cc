@@ -10,6 +10,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include <poll.h>
 
@@ -56,24 +57,27 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   command.append("--bind=uio_pci_generic ");
   command.append(m_deviceName.c_str());
   printf("Executing %s\n", command.c_str());
-  // if (system(command.c_str()))
-  //   {
-  //     rte_exit(EXIT_FAILURE, "Execution failed - bye\n");
-  //   }
+  if (system(command.c_str()))
+    {
+      rte_exit(EXIT_FAILURE, "Execution failed - bye\n");
+    }
 
-  // // Get port id of the device
-  // int status = rte_eth_dev_get_port_by_name (m_deviceName.c_str(), &m_portId);
-  // if (status != 0)
-  //   {
-  //     printf("Cannot get port id for %s\n", m_deviceName.c_str());
-  //     rte_exit(EXIT_FAILURE, "Cannot get port id - bye\n");
-  //   }
+  // wait for the device to bind to DPDK
+  sleep (5);  /* 5 second */
 
   unsigned nb_ports = rte_eth_dev_count();
 	if (nb_ports == 0)
     {
       rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
     }
+
+  // Get port id of the device
+  if (rte_eth_dev_get_port_by_name (m_deviceName.c_str(), &m_portId) != 0)
+    {
+      printf("Cannot get port id for %s\n", m_deviceName.c_str());
+      rte_exit(EXIT_FAILURE, "Cannot get port id - bye\n");
+    }
+  printf("Port id for %s is %d\n", m_deviceName.c_str(), m_portId);
 
   // unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 	// 	nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
