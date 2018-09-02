@@ -19,6 +19,7 @@
 #include <rte_common.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
+#include <rte_malloc.h>
 
 #define MAX_PKT_BURST 32 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
@@ -31,12 +32,9 @@ static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
 struct rte_mempool *l2fwd_pktmbuf_pool = NULL;
 
-// #define MAX_RX_QUEUE_PER_LCORE 16
-// struct lcore_queue_conf {
-// 	unsigned n_rx_port;
-// 	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
-// } __rte_cache_aligned;
-// struct lcore_queue_conf lcore_queue_conf[RTE_MAX_LCORE];
+static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
+
+static struct rte_eth_conf port_conf = {};
 
 namespace ns3 {
 
@@ -102,22 +100,6 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   // Set number of logical cores to 1
   unsigned int nb_lcores = 1;
 
-  // struct lcore_queue_conf *qconf;
-  // qconf = NULL;
-  // unsigned rx_lcore_id = 1; //setting the lcore_id=1 directly as we have only 1 logical core as of now
-
-  // if (qconf != &lcore_queue_conf[rx_lcore_id]) 
-  //   {
-	// 		/* Assigned a new logical core in the loop above. */
-	// 		qconf = &lcore_queue_conf[rx_lcore_id];
-	// 		printf("qconf set\n");
-  //     // nb_lcores++;
-	// 	}
-
-  // qconf->rx_port_list[qconf->n_rx_port] = m_portId;
-	// qconf->n_rx_port++;
-	// printf("Lcore %u: RX port %u\n", rx_lcore_id, m_portId);
-
   unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
 
@@ -133,6 +115,102 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
     }
   
   printf("mbuf pool initialization successful\n");
+
+  // Initialize port
+	port_conf.rxmode = {};
+	port_conf.rxmode.split_hdr_size = 0;
+	port_conf.rxmode.ignore_offload_bitfield = 1;
+	port_conf.rxmode.offloads = DEV_RX_OFFLOAD_CRC_STRIP;
+	port_conf.txmode = {};
+  port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
+  
+  struct rte_eth_rxconf rxq_conf;
+  struct rte_eth_txconf txq_conf;
+  struct rte_eth_conf local_port_conf = port_conf;
+  struct rte_eth_dev_info dev_info;
+
+  /* init port */
+  printf("Initializing port %u... ", m_portId);
+  fflush(stdout);
+  rte_eth_dev_info_get(m_portId, &dev_info);
+  if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
+    local_port_conf.txmode.offloads |=
+      DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+  ret = rte_eth_dev_configure(m_portId, 1, 1, &local_port_conf);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
+          ret, m_portId);
+    }
+
+  ret = rte_eth_dev_adjust_nb_rx_tx_desc(m_portId, &nb_rxd, &nb_txd);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE,
+          "Cannot adjust number of descriptors: err=%d, port=%u\n",
+          ret, m_portId);
+    }
+
+  /* init one RX queue */
+  fflush(stdout);
+  rxq_conf = dev_info.default_rxconf;
+  rxq_conf.offloads = local_port_conf.rxmode.offloads;
+  ret = rte_eth_rx_queue_setup(m_portId, 0, nb_rxd,
+              rte_eth_dev_socket_id(m_portId),
+              &rxq_conf,
+              l2fwd_pktmbuf_pool);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
+          ret, m_portId);
+    }
+
+  /* init one TX queue on each port */
+  fflush(stdout);
+  txq_conf = dev_info.default_txconf;
+  txq_conf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+  txq_conf.offloads = local_port_conf.txmode.offloads;
+  ret = rte_eth_tx_queue_setup(m_portId, 0, nb_txd,
+      rte_eth_dev_socket_id(m_portId),
+      &txq_conf);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
+        ret, m_portId);
+    }
+
+  /* Initialize TX buffers */
+  tx_buffer[m_portId] = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket("tx_buffer",
+      RTE_ETH_TX_BUFFER_SIZE(MAX_PKT_BURST), 0,
+      rte_eth_dev_socket_id(m_portId));
+  if (tx_buffer[m_portId] == NULL)
+    {
+      rte_exit(EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
+          m_portId);
+    }
+
+  rte_eth_tx_buffer_init(tx_buffer[m_portId], MAX_PKT_BURST);
+
+  // ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[m_portId],
+  //     rte_eth_tx_buffer_count_callback,
+  //     &port_statistics[m_portId].dropped);
+  // if (ret < 0)
+  //   rte_exit(EXIT_FAILURE,
+  //   "Cannot set error callback for tx buffer on port %u\n",
+  //       m_portId);
+
+  /* Start device */
+  ret = rte_eth_dev_start(m_portId);
+  if (ret < 0)
+    rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
+        ret, m_portId);
+
+  printf("done: \n");
+
+  rte_eth_promiscuous_enable(m_portId);
+
+  // /* initialize port stats */
+  // memset(&port_statistics, 0, sizeof(port_statistics));
 }
 
 void
