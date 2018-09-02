@@ -17,6 +17,26 @@
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 #include <rte_common.h>
+#include <rte_mempool.h>
+#include <rte_mbuf.h>
+
+#define MAX_PKT_BURST 32 //define the maximum packet burst size
+#define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
+
+// Configurable number of RX/TX ring descriptors
+#define RTE_TEST_RX_DESC_DEFAULT 1024
+#define RTE_TEST_TX_DESC_DEFAULT 1024
+static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
+static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
+
+struct rte_mempool *l2fwd_pktmbuf_pool = NULL;
+
+#define MAX_RX_QUEUE_PER_LCORE 16
+struct lcore_queue_conf {
+	unsigned n_rx_port;
+	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
+} __rte_cache_aligned;
+struct lcore_queue_conf lcore_queue_conf[RTE_MAX_LCORE];
 
 namespace ns3 {
 
@@ -79,17 +99,43 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
     }
   printf("Port id for %s is %d\n", m_deviceName.c_str(), m_portId);
 
-  // unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
-	// 	nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
+  // Set number of logical cores to 1
+  unsigned int nb_lcores = 0;
 
-	// /* create the mbuf pool */
-	// l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
-	// 	MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
-	// 	rte_socket_id());
-	// if (l2fwd_pktmbuf_pool == NULL)
-  //   {
-  //     rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
-  //   }
+  struct lcore_queue_conf *qconf;
+  qconf = NULL;
+  unsigned rx_lcore_id = 1; //setting the lcore_id=1 directly as we have only 1 logical core as of now
+
+  if (qconf != &lcore_queue_conf[rx_lcore_id]) 
+    {
+			/* Assigned a new logical core in the loop above. */
+			qconf = &lcore_queue_conf[rx_lcore_id];
+			printf("qconf set\n");
+      nb_lcores++;
+		}
+
+  qconf->rx_port_list[qconf->n_rx_port] = m_portId;
+	qconf->n_rx_port++;
+	printf("Lcore %u: RX port %u\n", rx_lcore_id, m_portId);
+
+  unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
+		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
+
+  printf("nb-mbufs------------%d\n",nb_mbufs);
+
+	/* create the mbuf pool */
+	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
+		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
+		rte_socket_id());
+
+	if (l2fwd_pktmbuf_pool == NULL)
+    {
+      rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
+    }
+  else
+    {
+      printf("mbuf pool initialization successful\n");
+    }
 }
 
 void
