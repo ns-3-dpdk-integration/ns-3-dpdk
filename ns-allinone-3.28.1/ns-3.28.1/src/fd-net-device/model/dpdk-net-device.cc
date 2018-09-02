@@ -10,6 +10,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/signal.h>
 #include <unistd.h>
 
 #include <poll.h>
@@ -20,6 +21,7 @@
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 #include <rte_malloc.h>
+#include <rte_cycles.h>
 
 #define MAX_PKT_BURST 32 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
@@ -35,6 +37,8 @@ struct rte_mempool *l2fwd_pktmbuf_pool = NULL;
 static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
 static struct rte_eth_conf port_conf = {};
+
+static volatile bool force_quit;
 
 namespace ns3 {
 
@@ -59,8 +63,75 @@ DPDKNetDevice::DPDKNetDevice ()
 }
 
 void
+DPDKNetDevice::CheckAllPortsLinkStatus(void)
+{
+#define CHECK_INTERVAL 100 /* 100ms */
+#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+	uint8_t count, all_ports_up, print_flag = 1;
+	struct rte_eth_link link;
+
+	printf("\nChecking link status\n");
+	fflush(stdout);
+	for (count = 0; count <= MAX_CHECK_TIME; count++) {
+
+		all_ports_up = 1;
+		
+    if (force_quit)
+			return;
+		if ((1 << m_portId) == 0)
+			continue;
+		memset(&link, 0, sizeof(link));
+		rte_eth_link_get_nowait(m_portId, &link);
+		/* print link status if flag set */
+		if (print_flag == 1) {
+			if (link.link_status)
+				printf(
+				"Port%d Link Up. Speed %u Mbps - %s\n",
+					m_portId, link.link_speed,
+			(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+				("full-duplex") : ("half-duplex\n"));
+			else
+				printf("Port %d Link Down\n", m_portId);
+			continue;
+		}
+		/* clear all_ports_up flag if any link down */
+		if (link.link_status == ETH_LINK_DOWN) {
+			all_ports_up = 0;
+			break;
+		}
+		
+    /* after finally printing all link status, get out */
+		if (print_flag == 1)
+			break;
+
+		if (all_ports_up == 0) {
+			printf(".");
+			fflush(stdout);
+			rte_delay_ms(CHECK_INTERVAL);
+		}
+
+		/* set the print_flag if all ports up or timeout */
+		if (all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
+			print_flag = 1;
+			printf("done\n");
+		}
+	}
+}
+
+static void
+signal_handler(int signum)
+{
+	if (signum == SIGINT || signum == SIGTERM) {
+		printf("\n\nSignal %d received, preparing to exit...\n",
+				signum);
+		force_quit = true;
+	}
+}
+
+void
 DPDKNetDevice::InitDPDK (int argc, char** argv)
 {
+
   // Initialize DPDK EAL
   int ret = rte_eal_init(argc, argv);
   if (ret < 0)
@@ -68,10 +139,14 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
       rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
     }
 
+  force_quit = false;
+  signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+
   // Bind device to DPDK
   std::string command;
   printf("Binding %s to driver uio_pci_generic\n", command.c_str());
-  command.append("$RTE_SDK/usertools/dpdk-devbind.py ");
+  command.append("$RTE_SDK/usertools/dpdk-devbind.py --force ");
   command.append("--bind=uio_pci_generic ");
   command.append(m_deviceName.c_str());
   printf("Executing %s\n", command.c_str());
@@ -211,6 +286,9 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
 
   // /* initialize port stats */
   // memset(&port_statistics, 0, sizeof(port_statistics));
+
+  CheckAllPortsLinkStatus();
+
 }
 
 void

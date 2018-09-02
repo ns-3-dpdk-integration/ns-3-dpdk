@@ -38,6 +38,11 @@ public:
   DPDKNetDevice ();
 
   /**
+   * Check the link status of all ports in up to 9s, and print them finally
+   */
+  void CheckAllPortsLinkStatus(void);
+
+  /**
    * Initialize DPDK.
    * Initializes EAL.
    *
