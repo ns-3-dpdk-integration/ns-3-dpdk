@@ -81,7 +81,7 @@ DPDKNetDevice::CheckAllPortsLinkStatus(void)
 		if ((1 << m_portId) == 0)
 			continue;
 		memset(&link, 0, sizeof(link));
-		rte_eth_link_get_nowait(m_portId, &link);
+		rte_eth_link_get(m_portId, &link);
 		/* print link status if flag set */
 		if (print_flag == 1) {
 			if (link.link_status)
