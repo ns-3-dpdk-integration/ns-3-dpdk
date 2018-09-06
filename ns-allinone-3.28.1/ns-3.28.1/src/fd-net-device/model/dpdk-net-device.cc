@@ -118,8 +118,8 @@ DPDKNetDevice::CheckAllPortsLinkStatus(void)
 	}
 }
 
-static void
-signal_handler(int signum)
+void
+DPDKNetDevice::SignalHandler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
 		printf("\n\nSignal %d received, preparing to exit...\n",
@@ -140,8 +140,8 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
     }
 
   force_quit = false;
-  signal(SIGINT, signal_handler);
-	signal(SIGTERM, signal_handler);
+  signal(SIGINT, SignalHandler);
+	signal(SIGTERM, SignalHandler);
 
   // Bind device to DPDK
   std::string command;

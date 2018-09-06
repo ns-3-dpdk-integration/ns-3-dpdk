@@ -58,6 +58,11 @@ public:
    */
   void SetDeviceName(std::string deviceName);
 
+  /**
+   * A signal handler for SIGINT and SIGTERM signals.
+   */
+  static void SignalHandler(int signum);
+
 protected:
 
   /**
