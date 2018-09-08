@@ -64,7 +64,14 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
   NS_ABORT_MSG_IF (buf == 0, "malloc() failed");
 
   NS_LOG_LOGIC ("Calling read on fd " << m_fd);
-  ssize_t len = read (m_fd, buf, m_bufferSize);
+
+  ssize_t len = 0;
+
+  if (m_device)
+    {
+      len = m_device->Read (buf);
+    }
+
   if (len <= 0)
     {
       free (buf);
@@ -73,6 +80,18 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
     }
   NS_LOG_LOGIC ("Read " << len << " bytes on fd " << m_fd);
   return FdReader::Data (buf, len);
+}
+
+void
+FdNetDeviceFdReader::SetFdNetDevice (Ptr< FdNetDevice> device)
+{
+  NS_LOG_FUNCTION (this << device);
+
+  if (device != 0)
+    {
+      m_device = device;
+    }
+
 }
 
 NS_OBJECT_ENSURE_REGISTERED (FdNetDevice);
@@ -261,6 +280,7 @@ FdNetDevice::StartDevice (void)
 
   m_fdReader = Create<FdNetDeviceFdReader> ();
   // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
+  m_fdReader->SetFdNetDevice (this);
   m_fdReader->SetBufferSize (m_mtu + 22);
   m_fdReader->Start (m_fd, MakeCallback (&FdNetDevice::ReceiveCallback, this));
 
@@ -587,7 +607,7 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
       AddPIHeader (buffer, len);
     }
 
-  ssize_t written = write (m_fd, buffer, len);
+  ssize_t written = Write (buffer, len);
   free (buffer);
 
   if (written == -1 || (size_t) written != len)
@@ -597,6 +617,23 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
     }
 
   return true;
+}
+
+ssize_t
+FdNetDevice::Write (uint8_t *buffer, size_t length)
+{
+  NS_LOG_FUNCTION (this << buffer << length);
+
+  return write (m_fd, buffer, length);
+}
+
+// runs in a separate thread
+ssize_t
+FdNetDevice::Read (uint8_t* buffer)
+{
+  NS_LOG_FUNCTION (this << buffer);
+
+  return read (m_fd, buffer, m_mtu + 22);
 }
 
 void

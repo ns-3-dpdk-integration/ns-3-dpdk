@@ -41,6 +41,7 @@
 
 namespace ns3 {
 
+class FdNetDevice;
 
 /**
  * \defgroup fd-net-device File Descriptor Network Device
@@ -62,8 +63,15 @@ public:
    */
   void SetBufferSize (uint32_t bufferSize);
 
+  /**
+   * Set the device.
+   */
+  void SetFdNetDevice (Ptr<FdNetDevice> device);
+
 private:
   FdReader::Data DoRead (void);
+
+  Ptr<FdNetDevice> m_device;
 
   uint32_t m_bufferSize; //!< size of the read buffer
 };
@@ -187,10 +195,26 @@ public:
    */
   virtual void SetIsMulticast (bool multicast);
 
+  /**
+   * Write packet data to device.
+   * \param buffer The data.
+   * \param length The data length.
+   * \return The size of data written.
+   */
+  virtual ssize_t Write (uint8_t *buffer, size_t length);
+
+  /**
+   * Read packet data from device.
+   * \param buffer Buffer the data to be read to.
+   * \return The size of data read.
+   */
+  virtual ssize_t Read (uint8_t *buffer);
+
 protected:
   virtual void DoDispose (void);
 
 private:
+
   /**
    * \brief Copy constructor
    *
