@@ -209,8 +209,10 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   fflush(stdout);
   rte_eth_dev_info_get(m_portId, &dev_info);
   if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
-    local_port_conf.txmode.offloads |=
-      DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+    {
+      local_port_conf.txmode.offloads |=
+        DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+    }
   ret = rte_eth_dev_configure(m_portId, 1, 1, &local_port_conf);
   if (ret < 0)
     {

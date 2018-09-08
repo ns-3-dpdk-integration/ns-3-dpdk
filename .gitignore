@@ -1,3 +1,7 @@
+.vscode
+ns-allinone-3.28.1/.vscode
+ns-allinone-3.28.1/ns-3.28.1/.vscode
+
 ns-allinone-3.28.1/ns-3.28.1/build
 
 *.diff
