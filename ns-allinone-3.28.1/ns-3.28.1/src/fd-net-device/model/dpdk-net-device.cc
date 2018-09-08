@@ -38,13 +38,13 @@ static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
 static struct rte_eth_conf port_conf = {};
 
-static volatile bool force_quit;
-
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DPDKNetDevice");
 
 NS_OBJECT_ENSURE_REGISTERED (DPDKNetDevice);
+
+volatile bool DPDKNetDevice::m_forceQuit = false;
 
 TypeId
 DPDKNetDevice::GetTypeId (void)
@@ -63,6 +63,29 @@ DPDKNetDevice::DPDKNetDevice ()
 }
 
 void
+DPDKNetDevice::SetDeviceName (std::string deviceName)
+{
+  m_deviceName = deviceName;
+}
+
+void
+DPDKNetDevice::StartDevice (void)
+{
+  NS_LOG_FUNCTION (this);
+  ns3::FdNetDevice::StartDevice ();
+
+}
+
+void
+DPDKNetDevice::StopDevice (void)
+{
+  NS_LOG_FUNCTION (this);
+  ns3::FdNetDevice::StopDevice ();
+
+  m_forceQuit = true;
+}
+
+void
 DPDKNetDevice::CheckAllPortsLinkStatus(void)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
@@ -76,7 +99,7 @@ DPDKNetDevice::CheckAllPortsLinkStatus(void)
 
 		all_ports_up = 1;
 		
-    if (force_quit)
+    if (m_forceQuit)
 			return;
 		if ((1 << m_portId) == 0)
 			continue;
@@ -124,7 +147,7 @@ DPDKNetDevice::SignalHandler(int signum)
 	if (signum == SIGINT || signum == SIGTERM) {
 		printf("\n\nSignal %d received, preparing to exit...\n",
 				signum);
-		force_quit = true;
+		m_forceQuit = true;
 	}
 }
 
@@ -139,7 +162,7 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
       rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
     }
 
-  force_quit = false;
+  m_forceQuit = false;
   signal(SIGINT, SignalHandler);
 	signal(SIGTERM, SignalHandler);
 
@@ -291,12 +314,6 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
 
   CheckAllPortsLinkStatus();
 
-}
-
-void
-DPDKNetDevice::SetDeviceName (std::string deviceName)
-{
-  m_deviceName = deviceName;
 }
 
 } // namespace ns3

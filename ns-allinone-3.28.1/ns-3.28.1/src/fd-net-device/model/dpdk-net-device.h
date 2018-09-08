@@ -60,10 +60,22 @@ public:
 
   /**
    * A signal handler for SIGINT and SIGTERM signals.
+   * 
+   * \paran signum The signal number.
    */
   static void SignalHandler(int signum);
 
 protected:
+
+  /**
+   * Spin up the device
+   */
+  void StartDevice (void);
+
+  /**
+   * Tear down the device
+   */
+  void StopDevice (void);
 
   /**
    * The port number of the device to be used.
@@ -74,6 +86,11 @@ protected:
    * The device name;
    */
   std::string m_deviceName;
+
+private:
+
+  static volatile bool m_forceQuit;          //!< Condition variable for DPDK to stop
+
 };
 
 } // 
