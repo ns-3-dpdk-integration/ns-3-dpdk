@@ -206,6 +206,7 @@ def build(bld):
     module.env.append_value ('SHLIB_MARKER', '-Wl,-ldl')
     module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_mempool')
     module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_mbuf')
+    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_ring')
 
     bld.ns3_python_bindings()
 

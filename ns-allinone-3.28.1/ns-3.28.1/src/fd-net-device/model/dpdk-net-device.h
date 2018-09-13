@@ -7,6 +7,8 @@
 
 #include "fd-net-device.h"
 
+#include <rte_ring.h>
+
 namespace ns3 {
 
 class Node;
@@ -65,6 +67,13 @@ public:
    */
   static void SignalHandler(int signum);
 
+  /**
+   * A function to set the rte_ring size value.
+   * 
+   * \paran ringSize Size of the ring.
+   */
+  void SetRteRingSize(int ringSize);
+
 protected:
 
   /**
@@ -76,6 +85,21 @@ protected:
    * Tear down the device
    */
   void StopDevice (void);
+
+  //   /**
+  //  * Write packet data to device.
+  //  * \param buffer The data.
+  //  * \param length The data length.
+  //  * \return The size of data written.
+  //  */
+  // ssize_t Write (uint8_t *buffer, size_t length);
+
+  // /**
+  //  * Read packet data from device.
+  //  * \param buffer Buffer the data to be read to.
+  //  * \return The size of data read.
+  //  */
+  // ssize_t Read (uint8_t *buffer);
 
   /**
    * The port number of the device to be used.
@@ -89,8 +113,11 @@ protected:
 
 private:
 
-  static volatile bool m_forceQuit;          //!< Condition variable for DPDK to stop
-
+  static volatile bool m_forceQuit;           //!< Condition variable for DPDK to stop
+  int m_ringSize;                             //!< Size of tx and rx ring         
+  struct rte_ring *m_txRing;                  //!< Instance of rte ring for transmission
+  struct rte_ring *m_rxRing;                  //!< Instance of rte ring for receival
+  
 };
 
 } // 

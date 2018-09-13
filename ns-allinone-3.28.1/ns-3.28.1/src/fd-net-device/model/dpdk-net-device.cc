@@ -26,6 +26,8 @@
 #define MAX_PKT_BURST 32 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
+#define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
+
 // Configurable number of RX/TX ring descriptors
 #define RTE_TEST_RX_DESC_DEFAULT 1024
 #define RTE_TEST_TX_DESC_DEFAULT 1024
@@ -60,6 +62,7 @@ DPDKNetDevice::GetTypeId (void)
 DPDKNetDevice::DPDKNetDevice ()
 {
   NS_LOG_FUNCTION (this);
+  m_ringSize = DEFAULT_RING_SIZE;
 }
 
 void
@@ -314,6 +317,38 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
 
   CheckAllPortsLinkStatus();
 
+  // initialize 2 rings for transmission and receival of packets
+  m_txRing = rte_ring_create("TX", m_ringSize, rte_socket_id(), RING_F_SP_ENQ | RING_F_SC_DEQ);
+  if (m_txRing == NULL)
+    rte_exit(EXIT_FAILURE, "Error in creating Tx ring.\n");
+  else 
+    printf("Tx ring created successfully.\n");
+
+  m_rxRing = rte_ring_create("RX", m_ringSize, rte_socket_id(), RING_F_SP_ENQ | RING_F_SC_DEQ);
+  if (m_rxRing == NULL)
+    rte_exit(EXIT_FAILURE, "Error in creating Rx ring.\n");
+  else
+    printf("Rx ring created successfully.\n");
+
 }
+
+void 
+DPDKNetDevice::SetRteRingSize(int ringSize)
+{
+  m_ringSize = ringSize;
+}
+
+
+// ssize_t
+// DPDKNetDevice::Write(uint8_t *buffer, size_t length)
+// {
+
+// }
+
+// ssize_t
+// DPDKNetDevice::Read(uint8_t *buffer)
+// {
+  
+// }
 
 } // namespace ns3
