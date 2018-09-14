@@ -28,6 +28,7 @@
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
 #define MAX_TX_BURST 32 //maximum no of packets transmitted from rte_ring to nic
+#define MAX_RX_BURST 32 //maximum no of packets read from nic to rte_ring
 
 // Configurable number of RX/TX ring descriptors
 #define RTE_TEST_RX_DESC_DEFAULT 1024
@@ -177,6 +178,21 @@ DPDKNetDevice::HandleTx()
   
 }
 
+void
+DPDKNetDevice::HandleRx()
+{
+  int queueId = 0;
+  struct rte_mbuf* rx_buffer[MAX_RX_BURST];
+  int nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
+  
+  int nb_rx;
+  if(nb_rx_nic!=0)
+    nb_rx = rte_ring_enqueue_burst(m_rxRing, (void **) rx_buffer, nb_rx_nic, NULL);
+  
+  if(nb_rx)
+    printf("%d packets received from nic\n",nb_rx);
+}
+
 int
 DPDKNetDevice::LaunchCore(void *arg)
 {
@@ -191,8 +207,10 @@ DPDKNetDevice::LaunchCore(void *arg)
   {
     // printf("calling HandleTx\n");
     dpdkNetDevice->HandleTx();
+    
     // printf("called HandleTx\n");
     // dpdkNetDevice->PrintCheck();
+    dpdkNetDevice->HandleRx();
 
     // we use a period to check and notify of 200 us; it is a value close to the interrupt coalescence period of a real device
     usleep(200);
@@ -437,10 +455,22 @@ DPDKNetDevice::Write(uint8_t *buffer, size_t length)
 }
 
 
-// ssize_t
-// DPDKNetDevice::Read(uint8_t *buffer)
-// {
+ssize_t
+DPDKNetDevice::Read(uint8_t *buffer)
+{
+  struct rte_mbuf *pkt;
+  if(rte_ring_dequeue(m_rxRing, (void **) &pkt));
+    return -1;
   
-// }
+  uint8_t * dataBuffer;
+  dataBuffer = new uint8_t [pkt->pkt_len]; 
+  dataBuffer = (uint8_t *) rte_pktmbuf_read(pkt, 0, pkt->pkt_len, dataBuffer);
+  memcpy(buffer, dataBuffer, pkt->pkt_len);
+
+  int length = pkt->pkt_len;
+  rte_pktmbuf_free(pkt);
+
+  return length;
+}
 
 } // namespace ns3

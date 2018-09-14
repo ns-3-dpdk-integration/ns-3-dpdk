@@ -85,6 +85,8 @@ public:
 
   void HandleTx();
 
+  void HandleRx();
+
   bool IsLinkUp (void) const;
 
 
@@ -114,7 +116,7 @@ protected:
   //  * \param buffer Buffer the data to be read to.
   //  * \return The size of data read.
   //  */
-  // ssize_t Read (uint8_t *buffer);
+  ssize_t Read (uint8_t *buffer);
 
   /**
    * The port number of the device to be used.
