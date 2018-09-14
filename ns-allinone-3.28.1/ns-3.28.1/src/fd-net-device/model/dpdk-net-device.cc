@@ -27,14 +27,13 @@
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
+#define MAX_TX_BURST 32 //maximum no of packets transmitted from rte_ring to nic
 
 // Configurable number of RX/TX ring descriptors
 #define RTE_TEST_RX_DESC_DEFAULT 1024
 #define RTE_TEST_TX_DESC_DEFAULT 1024
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
-
-struct rte_mempool *l2fwd_pktmbuf_pool = NULL;
 
 static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
@@ -63,6 +62,7 @@ DPDKNetDevice::DPDKNetDevice ()
 {
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
+  m_mempool = NULL;
 }
 
 void
@@ -155,6 +155,71 @@ DPDKNetDevice::SignalHandler(int signum)
 }
 
 void
+DPDKNetDevice::HandleTx()
+{
+  int queueId = 0;
+  void** tx_buffer;
+  tx_buffer = (void**) malloc(MAX_TX_BURST * sizeof(struct rte_mbuf*));
+  
+  // int ringno = rte_ring_count(m_txRing);
+  // printf("No of entries in ring %d\n",ringno);
+
+  int nb_tx = rte_ring_dequeue_burst(m_txRing, tx_buffer, MAX_TX_BURST, NULL);
+  // printf("dequeue bulk done %d\n",nb_tx);
+  if(nb_tx == 0)
+      return;
+  do {
+    int ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf**) tx_buffer, nb_tx);
+    printf("transmitted %d packets\n",ret);
+    // tx_buffer += ret;
+    nb_tx -= ret;
+  } while( nb_tx > 0 );
+  
+}
+
+int
+DPDKNetDevice::LaunchCore(void *arg)
+{
+  DPDKNetDevice *dpdkNetDevice = (DPDKNetDevice*) arg;
+  unsigned lcore_id;
+	lcore_id = rte_lcore_id();	
+  if(lcore_id != 1)
+    return 0;
+
+  dpdkNetDevice->PrintCheck();
+  while(!m_forceQuit)
+  {
+    // printf("calling HandleTx\n");
+    dpdkNetDevice->HandleTx();
+    // printf("called HandleTx\n");
+    // dpdkNetDevice->PrintCheck();
+
+    // we use a period to check and notify of 200 us; it is a value close to the interrupt coalescence period of a real device
+    usleep(200);
+  }
+  
+  return 0;  
+}
+
+void
+DPDKNetDevice::PrintCheck()
+{
+  printf("hello world\n");
+}
+
+bool 
+DPDKNetDevice::IsLinkUp (void) const
+{
+  struct rte_eth_link link;
+  memset(&link, 0, sizeof(link));
+	rte_eth_link_get(m_portId, &link);
+  if (link.link_status)
+		return true;
+  return false;
+}
+
+
+void
 DPDKNetDevice::InitDPDK (int argc, char** argv)
 {
 
@@ -207,10 +272,10 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   printf("nb-mbufs------------%d\n",nb_mbufs);
 
 	/* create the mbuf pool */
-	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
+	m_mempool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
 		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
 
-	if (l2fwd_pktmbuf_pool == NULL)
+	if (m_mempool == NULL)
     {
       rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
     }
@@ -261,7 +326,7 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   ret = rte_eth_rx_queue_setup(m_portId, 0, nb_rxd,
               rte_eth_dev_socket_id(m_portId),
               &rxq_conf,
-              l2fwd_pktmbuf_pool);
+              m_mempool);
   if (ret < 0)
     {
       rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
@@ -330,6 +395,9 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   else
     printf("Rx ring created successfully.\n");
 
+  rte_eal_mp_remote_launch(LaunchCore, this, CALL_MASTER);
+
+
 }
 
 void 
@@ -339,11 +407,35 @@ DPDKNetDevice::SetRteRingSize(int ringSize)
 }
 
 
-// ssize_t
-// DPDKNetDevice::Write(uint8_t *buffer, size_t length)
-// {
+ssize_t
+DPDKNetDevice::Write(uint8_t *buffer, size_t length)
+{
+  printf("dpdknetdevice write\n");
+  struct rte_mbuf *pkt;
+  pkt = rte_pktmbuf_alloc(m_mempool); 
+  pkt->data_len = length;
+  pkt->pkt_len = length;
 
-// }
+  char *data;
+  data = rte_pktmbuf_append(pkt, length);
+  if (data != NULL)
+    memcpy(data, buffer, length);
+  else {
+    printf("Unable to memcpy\n");
+    return -1; // Unable to append length in rte_pktmbuf_append()
+  }
+
+  int x = rte_ring_enqueue(m_txRing, pkt);
+  if(x) {
+    printf("Unable to enqueue\n");
+    return -1;
+  }
+
+  printf("Written %d bytes\n", (int) length);
+
+  return length;
+}
+
 
 // ssize_t
 // DPDKNetDevice::Read(uint8_t *buffer)

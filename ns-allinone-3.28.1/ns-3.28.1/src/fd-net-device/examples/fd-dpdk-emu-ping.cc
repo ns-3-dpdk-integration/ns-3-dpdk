@@ -113,7 +113,7 @@ main (int argc, char *argv[])
   ealArgv[1] = new char[20];
   strcpy(ealArgv[1], "-l");
   ealArgv[2] = new char[20];
-  strcpy(ealArgv[2], "0");
+  strcpy(ealArgv[2], "0,1");
   ealArgv[3] = new char[20];
   strcpy(ealArgv[3], "-d");
   ealArgv[4] = new char[20];

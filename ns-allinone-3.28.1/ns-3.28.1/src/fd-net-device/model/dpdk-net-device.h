@@ -5,9 +5,11 @@
 #ifndef DPDK_NET_DEVICE_H
 #define DPDK_NET_DEVICE_H
 
+
 #include "fd-net-device.h"
 
 #include <rte_ring.h>
+#include <rte_mempool.h>
 
 namespace ns3 {
 
@@ -74,6 +76,19 @@ public:
    */
   void SetRteRingSize(int ringSize);
 
+  /**
+   * A function to handle rx & tx operations.
+   */
+  static int LaunchCore(void *arg);
+
+  void PrintCheck();
+
+  void HandleTx();
+
+  bool IsLinkUp (void) const;
+
+
+
 protected:
 
   /**
@@ -92,7 +107,7 @@ protected:
   //  * \param length The data length.
   //  * \return The size of data written.
   //  */
-  // ssize_t Write (uint8_t *buffer, size_t length);
+  ssize_t Write (uint8_t *buffer, size_t length);
 
   // /**
   //  * Read packet data from device.
@@ -117,7 +132,8 @@ private:
   int m_ringSize;                             //!< Size of tx and rx ring         
   struct rte_ring *m_txRing;                  //!< Instance of rte ring for transmission
   struct rte_ring *m_rxRing;                  //!< Instance of rte ring for receival
-  
+  struct rte_mempool *m_mempool;              //!< packet mempool
+
 };
 
 } // 
