@@ -158,22 +158,22 @@ DPDKNetDevice::SignalHandler(int signum)
 void
 DPDKNetDevice::HandleTx()
 {
-  int queueId = 0;
+  int queueId = 0, nb_tx, ret;
   void** tx_buffer;
-  tx_buffer = (void**) malloc(MAX_TX_BURST * sizeof(struct rte_mbuf*));
   
   // int ringno = rte_ring_count(m_txRing);
-  // printf("No of entries in ring %d\n",ringno);
-
-  int nb_tx = rte_ring_dequeue_burst(m_txRing, tx_buffer, MAX_TX_BURST, NULL);
+  // printf("No of entries in ring %d\n",ringno);  
+  tx_buffer = (void**) malloc(MAX_TX_BURST * sizeof(struct rte_mbuf*));
+  nb_tx = rte_ring_dequeue_burst(m_txRing, tx_buffer, MAX_TX_BURST, NULL);
   // printf("dequeue bulk done %d\n",nb_tx);
+  
   if(nb_tx == 0)
       return;
   do {
-    int ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf**) tx_buffer, nb_tx);
-    printf("transmitted %d packets\n",ret);
-    // tx_buffer += ret;
+    ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf**) tx_buffer, nb_tx);
+    tx_buffer += ret;
     nb_tx -= ret;
+    printf("transmitted %d packets, %d  \n",ret,nb_tx);
   } while( nb_tx > 0 );
   
 }
@@ -183,9 +183,10 @@ DPDKNetDevice::HandleRx()
 {
   int queueId = 0;
   struct rte_mbuf* rx_buffer[MAX_RX_BURST];
-  int nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
+  int nb_rx_nic, nb_rx;
   
-  int nb_rx;
+  nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
+  
   if(nb_rx_nic!=0)
     nb_rx = rte_ring_enqueue_burst(m_rxRing, (void **) rx_buffer, nb_rx_nic, NULL);
   
@@ -206,10 +207,10 @@ DPDKNetDevice::LaunchCore(void *arg)
   while(!m_forceQuit)
   {
     // printf("calling HandleTx\n");
-    dpdkNetDevice->HandleTx();
-    
+    dpdkNetDevice->HandleTx();    
     // printf("called HandleTx\n");
     // dpdkNetDevice->PrintCheck();
+
     dpdkNetDevice->HandleRx();
 
     // we use a period to check and notify of 200 us; it is a value close to the interrupt coalescence period of a real device
@@ -414,8 +415,6 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
     printf("Rx ring created successfully.\n");
 
   rte_eal_mp_remote_launch(LaunchCore, this, CALL_MASTER);
-
-
 }
 
 void 
@@ -428,13 +427,14 @@ DPDKNetDevice::SetRteRingSize(int ringSize)
 ssize_t
 DPDKNetDevice::Write(uint8_t *buffer, size_t length)
 {
-  printf("dpdknetdevice write\n");
   struct rte_mbuf *pkt;
+  char *data;
+
   pkt = rte_pktmbuf_alloc(m_mempool); 
   pkt->data_len = length;
   pkt->pkt_len = length;
 
-  char *data;
+  printf("dpdknetdevice write\n");
   data = rte_pktmbuf_append(pkt, length);
   if (data != NULL)
     memcpy(data, buffer, length);
@@ -443,8 +443,7 @@ DPDKNetDevice::Write(uint8_t *buffer, size_t length)
     return -1; // Unable to append length in rte_pktmbuf_append()
   }
 
-  int x = rte_ring_enqueue(m_txRing, pkt);
-  if(x) {
+  if(rte_ring_enqueue(m_txRing, pkt)) {
     printf("Unable to enqueue\n");
     return -1;
   }
@@ -459,15 +458,17 @@ ssize_t
 DPDKNetDevice::Read(uint8_t *buffer)
 {
   struct rte_mbuf *pkt;
+  uint8_t * dataBuffer;
+  int length;
+
   if(rte_ring_dequeue(m_rxRing, (void **) &pkt));
     return -1;
   
-  uint8_t * dataBuffer;
   dataBuffer = new uint8_t [pkt->pkt_len]; 
   dataBuffer = (uint8_t *) rte_pktmbuf_read(pkt, 0, pkt->pkt_len, dataBuffer);
   memcpy(buffer, dataBuffer, pkt->pkt_len);
 
-  int length = pkt->pkt_len;
+  length = pkt->pkt_len;
   rte_pktmbuf_free(pkt);
 
   return length;

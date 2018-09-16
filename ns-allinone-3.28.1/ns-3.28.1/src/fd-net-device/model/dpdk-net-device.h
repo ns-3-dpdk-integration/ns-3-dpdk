@@ -65,14 +65,14 @@ public:
   /**
    * A signal handler for SIGINT and SIGTERM signals.
    * 
-   * \paran signum The signal number.
+   * \param signum The signal number.
    */
   static void SignalHandler(int signum);
 
   /**
    * A function to set the rte_ring size value.
    * 
-   * \paran ringSize Size of the ring.
+   * \param ringSize Size of the ring.
    */
   void SetRteRingSize(int ringSize);
 
@@ -81,12 +81,23 @@ public:
    */
   static int LaunchCore(void *arg);
 
+  // utility to check dpdknetdevice launch core in working
   void PrintCheck();
 
+  /**
+   * Transmit packets in burst from the rte_ring to the nic.
+   */
   void HandleTx();
 
+  /**
+   * Receive packets in burst from the nic to the rte_ring.
+   */
   void HandleRx();
 
+  /**
+   * Check the status of the link.
+   * \return Status of the link - up/down as true/false.
+   */
   bool IsLinkUp (void) const;
 
 
@@ -103,19 +114,19 @@ protected:
    */
   void StopDevice (void);
 
-  //   /**
-  //  * Write packet data to device.
-  //  * \param buffer The data.
-  //  * \param length The data length.
-  //  * \return The size of data written.
-  //  */
+  /**
+   * Write packet data to device.
+   * \param buffer The data.
+   * \param length The data length.
+   * \return The size of data written.
+   */
   ssize_t Write (uint8_t *buffer, size_t length);
 
-  // /**
-  //  * Read packet data from device.
-  //  * \param buffer Buffer the data to be read to.
-  //  * \return The size of data read.
-  //  */
+  /**
+   * Read packet data from device.
+   * \param buffer Buffer the data to be read to.
+   * \return The size of data read.
+   */
   ssize_t Read (uint8_t *buffer);
 
   /**
@@ -134,7 +145,7 @@ private:
   int m_ringSize;                             //!< Size of tx and rx ring         
   struct rte_ring *m_txRing;                  //!< Instance of rte ring for transmission
   struct rte_ring *m_rxRing;                  //!< Instance of rte ring for receival
-  struct rte_mempool *m_mempool;              //!< packet mempool
+  struct rte_mempool *m_mempool;              //!< Pakcet memory pool
 
 };
 
