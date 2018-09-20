@@ -67,6 +67,7 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
 
   ssize_t len = 0;
 
+  printf("In DORead\n");
   if (m_device)
     {
       len = m_device->Read (buf);
@@ -185,12 +186,12 @@ FdNetDevice::GetTypeId (void)
 }
 
 FdNetDevice::FdNetDevice ()
-  : m_node (0),
-    m_ifIndex (0),
-    // Defaults to Ethernet v2 MTU
+  : // Defaults to Ethernet v2 MTU
     m_mtu (1500),
     m_fd (-1),
     m_fdReader (0),
+    m_node (0),
+    m_ifIndex (0),
     m_isBroadcast (true),
     m_isMulticast (false),
     m_startEvent (),
@@ -632,7 +633,7 @@ ssize_t
 FdNetDevice::Read (uint8_t* buffer)
 {
   NS_LOG_FUNCTION (this << buffer);
-
+  printf("Callling FdNetDevice Read\n");
   return read (m_fd, buffer, m_mtu + 22);
 }
 

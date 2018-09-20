@@ -48,6 +48,94 @@ NS_OBJECT_ENSURE_REGISTERED (DPDKNetDevice);
 
 volatile bool DPDKNetDevice::m_forceQuit = false;
 
+DPDKNetDeviceReader::DPDKNetDeviceReader ()
+  : m_stop(false),
+    m_bufferSize(65536)
+{
+}
+
+void
+DPDKNetDeviceReader::SetBufferSize (uint32_t bufferSize)
+{
+  NS_LOG_FUNCTION (this << bufferSize);
+  m_bufferSize = bufferSize;
+}
+
+void
+DPDKNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
+{
+  NS_LOG_FUNCTION (this << device);
+
+  if (device != 0)
+    {
+      m_device = device;
+    }
+}
+
+DPDKNetDeviceReader::Data DPDKNetDeviceReader::DoRead (void)
+{
+  NS_LOG_FUNCTION (this);
+
+  uint8_t *buf = (uint8_t *)malloc (m_bufferSize);
+  NS_ABORT_MSG_IF (buf == 0, "malloc() failed");
+
+  ssize_t len = 0;
+
+  if (m_device)
+    {
+      len = m_device->Read (buf);
+    }
+
+  if (len <= 0)
+    {
+      free (buf);
+      buf = 0;
+    }
+  return DPDKNetDeviceReader::Data (buf, len);
+}
+
+void
+DPDKNetDeviceReader::Run (void)
+{
+  while (!m_stop)
+    {
+      struct DPDKNetDeviceReader::Data data = DoRead ();
+      // reading stops when m_len is zero
+      if (data.m_len == 0)
+        {
+          break;
+        }
+      // the callback is only called when m_len is positive (data
+      // is ignored if m_len is negative)
+      else if (data.m_len > 0)
+        {
+          m_readCallback (data.m_buf, data.m_len);
+        }
+    }
+}
+
+void
+DPDKNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
+{
+  m_readCallback = readCallback;
+  m_readThread = Create<SystemThread> (MakeCallback (&DPDKNetDeviceReader::Run, this));
+  m_readThread->Start ();
+}
+
+void
+DPDKNetDeviceReader::Stop ()
+{
+  m_stop = true;
+  // join the read thread
+  if (m_readThread != 0)
+    {
+      m_readThread->Join ();
+      m_readThread = 0;
+    }
+  m_readCallback.Nullify ();
+  m_stop = false;
+}
+
 TypeId
 DPDKNetDevice::GetTypeId (void)
 {
@@ -64,6 +152,7 @@ DPDKNetDevice::DPDKNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
+  SetFileDescriptor(1);
 }
 
 void
@@ -76,8 +165,21 @@ void
 DPDKNetDevice::StartDevice (void)
 {
   NS_LOG_FUNCTION (this);
-  ns3::FdNetDevice::StartDevice ();
+  //
+  // A similar story exists for the node ID.  We can't just naively do a
+  // GetNode ()->GetId () since GetNode is going to give us a Ptr<Node> which
+  // is reference counted.  We need to stash away the node ID for use in the
+  // read thread.
+  //
+  m_nodeId = GetNode ()->GetId ();
 
+  m_reader = Create<DPDKNetDeviceReader> ();
+  // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
+  m_reader->SetFdNetDevice (this);
+  m_reader->SetBufferSize (m_mtu + 22);
+  m_reader->Start (MakeCallback (&FdNetDevice::ReceiveCallback, this));
+
+  NotifyLinkUp ();
 }
 
 void
@@ -85,7 +187,7 @@ DPDKNetDevice::StopDevice (void)
 {
   NS_LOG_FUNCTION (this);
   ns3::FdNetDevice::StopDevice ();
-
+  m_reader->Stop();
   m_forceQuit = true;
 }
 
@@ -94,7 +196,7 @@ DPDKNetDevice::CheckAllPortsLinkStatus(void)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
 #define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
-	uint8_t count, all_ports_up, print_flag = 1;
+	uint8_t count, all_ports_up, print_flag = 0;
 	struct rte_eth_link link;
 
 	printf("\nChecking link status\n");
@@ -183,15 +285,24 @@ DPDKNetDevice::HandleRx()
 {
   int queueId = 0;
   struct rte_mbuf* rx_buffer[MAX_RX_BURST];
-  int nb_rx_nic, nb_rx;
+  int nb_rx_nic, nb_rx = -1;
   
   nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
   
-  if(nb_rx_nic!=0)
+  if(nb_rx_nic!=0) {
+    printf("%d packets read from nic\n", nb_rx_nic);
     nb_rx = rte_ring_enqueue_burst(m_rxRing, (void **) rx_buffer, nb_rx_nic, NULL);
+  }
+  // if (nb_rx_nic > 0) {
+  //   printf("%d packets read from nic\n", nb_rx_nic);
+  //   nb_rx = rte_ring_enqueue(m_rxRing, (void**) rx_buffer);
+  // }
   
-  if(nb_rx)
-    printf("%d packets received from nic\n",nb_rx);
+  if(nb_rx > 0)
+  {
+    printf("%d packets received from nic\n",1);
+    printf("rx ring size %d\n", rte_ring_count(m_rxRing));
+  }
 }
 
 int
@@ -457,15 +568,27 @@ DPDKNetDevice::Write(uint8_t *buffer, size_t length)
 ssize_t
 DPDKNetDevice::Read(uint8_t *buffer)
 {
+  // printf("READ called\n");
+  void *item;
   struct rte_mbuf *pkt;
-  uint8_t * dataBuffer;
+  uint8_t *dataBuffer;
   int length;
 
-  if(rte_ring_dequeue(m_rxRing, (void **) &pkt));
+  if(rte_ring_dequeue(m_rxRing, &item) != 0);
+  {
+    // printf("Unable to dequeue\n");
     return -1;
+  }
+
+  pkt = (struct rte_mbuf*) item;
+  printf("RTE RING Dequeue done\n");
   
-  dataBuffer = new uint8_t [pkt->pkt_len]; 
+  dataBuffer = new uint8_t[pkt->pkt_len]; 
   dataBuffer = (uint8_t *) rte_pktmbuf_read(pkt, 0, pkt->pkt_len, dataBuffer);
+  
+  if(dataBuffer == NULL)
+    printf("rtepktmbuf read not working-mbuf too small\n");
+
   memcpy(buffer, dataBuffer, pkt->pkt_len);
 
   length = pkt->pkt_len;

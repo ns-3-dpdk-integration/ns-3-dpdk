@@ -14,10 +14,84 @@
 namespace ns3 {
 
 class Node;
-class NetDeviceQueueInterface;
-class SystemThread;
-class NetDeviceQueue;
 
+/**
+ * \ingroup fd-net-device
+ * \brief This class performs the actual data reading from the DPDKNetDevice.
+ */
+class DPDKNetDeviceReader : public Object
+{
+public:
+
+  DPDKNetDeviceReader ();
+
+  /**
+   * Set size of the read buffer.
+   */
+  void SetBufferSize (uint32_t bufferSize);
+
+  /**
+   * Set the device.
+   */
+  void SetFdNetDevice (Ptr<FdNetDevice> device);
+  
+  /** The asynchronous function which performs read operation from DPDKNetDevice. */
+  void Run (void);
+
+  /**
+   * Start a new read thread.
+   *
+   * \param [in] readCallback A callback to invoke when new data is
+   * available.
+   */
+  void Start (Callback<void, uint8_t *, ssize_t> readCallback);
+
+  /**
+   * Stop the read thread and reset internal state.  This does not
+   * close the file descriptor used for reading.
+   */
+  void Stop (void);
+
+protected:
+
+  /**
+   * \brief A structure representing data read.
+   */
+  struct Data
+  {
+    /** Default constructor, with null buffer and zero length. */
+    Data () : m_buf (0), m_len (0) {}
+    /**
+     * Construct from a buffer of a given length.
+     *
+     * \param [in] buf The buffer.
+     * \param [in] len The size of the buffer, in bytes.
+     */
+    Data (uint8_t *buf, ssize_t len) : m_buf (buf), m_len (len) {}
+    /** The read data buffer. */
+    uint8_t *m_buf;
+    /** The size of the read data buffer, in bytes. */
+    ssize_t m_len;
+  };
+
+private:
+
+  DPDKNetDeviceReader::Data DoRead (void);
+  
+  Ptr<FdNetDevice> m_device;
+
+  /** Signal the read thread to stop. */
+  bool m_stop;
+
+  uint32_t m_bufferSize; //!< size of the read buffer
+
+  /** The main thread callback function to invoke when we have data. */
+  Callback<void, uint8_t *, ssize_t> m_readCallback;
+  
+  /** The thread doing the read, created and launched by Start(). */
+  Ptr<SystemThread> m_readThread;
+  
+};
 
 /**
  * \ingroup fd-net-device
@@ -100,8 +174,6 @@ public:
    */
   bool IsLinkUp (void) const;
 
-
-
 protected:
 
   /**
@@ -140,6 +212,11 @@ protected:
   std::string m_deviceName;
 
 private:
+
+  /**
+   * Reader for the file descriptor.
+   */
+  Ptr<DPDKNetDeviceReader> m_reader;
 
   static volatile bool m_forceQuit;           //!< Condition variable for DPDK to stop
   int m_ringSize;                             //!< Size of tx and rx ring         

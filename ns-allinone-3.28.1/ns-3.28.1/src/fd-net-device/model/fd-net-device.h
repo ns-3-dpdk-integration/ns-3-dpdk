@@ -69,8 +69,9 @@ public:
   void SetFdNetDevice (Ptr<FdNetDevice> device);
 
 private:
-  FdReader::Data DoRead (void);
 
+  FdReader::Data DoRead (void);
+  
   Ptr<FdNetDevice> m_device;
 
   uint32_t m_bufferSize; //!< size of the read buffer
@@ -210,55 +211,23 @@ public:
    */
   virtual ssize_t Read (uint8_t *buffer);
 
+  /**
+   * Callback to invoke when a new frame is received
+   */
+  void ReceiveCallback (uint8_t *buf, ssize_t len);
+
 protected:
   virtual void DoDispose (void);
   
   /**
    * Spin up the device
    */
-  void StartDevice (void);
+  virtual void StartDevice (void);
 
   /**
    * Tear down the device
    */
-  void StopDevice (void);
-
-private:
-
-  /**
-   * \brief Copy constructor
-   *
-   * Defined and unimplemented to avoid misuse as suggested in
-   * http://www.nsnam.org/wiki/NS-3_Python_Bindings#.22invalid_use_of_incomplete_type.22
-   */
-  FdNetDevice (FdNetDevice const &);
-
-  /**
-   * Callback to invoke when a new frame is received
-   */
-  void ReceiveCallback (uint8_t *buf, ssize_t len);
-
-  /**
-   * Forward the frame to the appropriate callback for processing
-   */
-  void ForwardUp (void);
-
-  /**
-   * Start Sending a Packet Down the Wire.
-   * @param p packet to send
-   * @returns true if success, false on failure
-   */
-  bool TransmitStart (Ptr<Packet> p);
-
-  /**
-   * Notify that the link is up and ready
-   */
-  void NotifyLinkUp (void);
-
-  /**
-   * The ns-3 node associated to the net device.
-   */
-  Ptr<Node> m_node;
+  virtual void StopDevice (void);
 
   /**
    * a copy of the node id so the read thread doesn't have to GetNode() in
@@ -268,9 +237,9 @@ private:
   uint32_t m_nodeId;
 
   /**
-   * The ns-3 interface index (in the sense of net device index) that has been assigned to this network device.
+   * Notify that the link is up and ready
    */
-  uint32_t m_ifIndex;
+  void NotifyLinkUp (void);
 
   /**
    * The MTU associated to the file descriptor technology
@@ -286,6 +255,38 @@ private:
    * Reader for the file descriptor.
    */
   Ptr<FdNetDeviceFdReader> m_fdReader;
+
+private:
+
+  /**
+   * \brief Copy constructor
+   *
+   * Defined and unimplemented to avoid misuse as suggested in
+   * http://www.nsnam.org/wiki/NS-3_Python_Bindings#.22invalid_use_of_incomplete_type.22
+   */
+  FdNetDevice (FdNetDevice const &);
+
+  /**
+   * Forward the frame to the appropriate callback for processing
+   */
+  void ForwardUp (void);
+
+  /**
+   * Start Sending a Packet Down the Wire.
+   * @param p packet to send
+   * @returns true if success, false on failure
+   */
+  bool TransmitStart (Ptr<Packet> p);
+
+  /**
+   * The ns-3 node associated to the net device.
+   */
+  Ptr<Node> m_node;
+
+  /**
+   * The ns-3 interface index (in the sense of net device index) that has been assigned to this network device.
+   */
+  uint32_t m_ifIndex;
 
   /**
    * The net device mac address.
