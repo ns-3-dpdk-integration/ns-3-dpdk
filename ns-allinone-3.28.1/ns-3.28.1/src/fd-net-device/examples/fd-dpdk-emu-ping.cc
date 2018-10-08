@@ -43,7 +43,8 @@ main (int argc, char *argv[])
 {
   NS_LOG_INFO ("DPDK Emulation Ping Example");
 
-  std::string deviceName ("0000:00:03.0");
+  std::string deviceName ("0000:00:11.0");
+  std::string macClient ("F7:2D:24:00:3B:67");
   // ping a real host connected back-to-back through the ethernet interfaces
   std::string remote ("1.1.1.1");
 
@@ -59,7 +60,7 @@ main (int argc, char *argv[])
 
   Ipv4Address remoteIp (remote.c_str ());
   // the OS IP for the eth0 interfaces is 10.0.1.1, and we set the ns-3 IP for eth0 to 10.0.1.11
-  Ipv4Address localIp ("10.0.3.151");
+  Ipv4Address localIp ("192.168.43.43");
   NS_ABORT_MSG_IF (localIp == "1.2.3.4", "You must change the local IP address before running this example");
 
   Ipv4Mask localMask ("255.255.255.0");
@@ -127,7 +128,7 @@ main (int argc, char *argv[])
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);
   Ptr<NetDevice> device = devices.Get (0);
-  device->SetAttribute ("Address", Mac48AddressValue (Mac48Address::Allocate ()));
+  device->SetAttribute ("Address", Mac48AddressValue (macClient.c_str()));
 
   //Ptr<Queue> queue = CreateObject<DropTailQueue> ();
   //device->SetQueue (queue);
@@ -175,7 +176,7 @@ main (int argc, char *argv[])
   // "1.2.3.4" string.
   //
   // Ipv4Address gateway ("10.0.2.2");
-  Ipv4Address gateway ("10.52.0.1");
+  Ipv4Address gateway ("192.168.43.1");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;

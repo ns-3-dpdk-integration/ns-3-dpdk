@@ -194,6 +194,7 @@ def build(bld):
         os.environ['LD_LIBRARY_PATH'] += ':' + os.path.join(dpdk_build, 'lib')
 
     module.env.append_value("CXXFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
+    module.env.append_value("CXXFLAGS", ['-mssse3'])
     module.env.append_value("LINKFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
     module.env.append_value("LINKFLAGS", ['-L' + os.path.join(dpdk_build, 'lib')])
     module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_eal')

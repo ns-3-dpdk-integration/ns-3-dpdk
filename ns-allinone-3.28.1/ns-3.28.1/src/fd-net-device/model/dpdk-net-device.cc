@@ -290,7 +290,7 @@ DPDKNetDevice::HandleRx()
   nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
   
   if(nb_rx_nic!=0) {
-    printf("%d packets read from nic\n", nb_rx_nic);
+    // printf("%d packets read from nic\n", nb_rx_nic);
     nb_rx = rte_ring_enqueue_burst(m_rxRing, (void **) rx_buffer, nb_rx_nic, NULL);
   }
   // if (nb_rx_nic > 0) {
@@ -300,8 +300,8 @@ DPDKNetDevice::HandleRx()
   
   if(nb_rx > 0)
   {
-    printf("%d packets received from nic\n",1);
-    printf("rx ring size %d\n", rte_ring_count(m_rxRing));
+    // printf("%d packets received from nic\n", nb_rx);
+    // printf("rx ring size %d\n", rte_ring_count(m_rxRing));
   }
 }
 
@@ -574,14 +574,14 @@ DPDKNetDevice::Read(uint8_t *buffer)
   uint8_t *dataBuffer;
   int length;
 
-  if(rte_ring_dequeue(m_rxRing, &item) != 0);
+  if(rte_ring_dequeue(m_rxRing, &item) != 0)
   {
     // printf("Unable to dequeue\n");
     return -1;
   }
 
   pkt = (struct rte_mbuf*) item;
-  printf("RTE RING Dequeue done\n");
+  // printf("RTE RING Dequeue done\n");
   
   dataBuffer = new uint8_t[pkt->pkt_len]; 
   dataBuffer = (uint8_t *) rte_pktmbuf_read(pkt, 0, pkt->pkt_len, dataBuffer);
