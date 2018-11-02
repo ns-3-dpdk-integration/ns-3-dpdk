@@ -189,6 +189,8 @@ DPDKNetDevice::StopDevice (void)
   ns3::FdNetDevice::StopDevice ();
   m_reader->Stop();
   m_forceQuit = true;
+  rte_ring_free(m_txRing);
+  rte_ring_free(m_rxRing);
 }
 
 void
@@ -368,7 +370,7 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   std::string command;
   printf("Binding %s to driver uio_pci_generic\n", command.c_str());
   command.append("$RTE_SDK/usertools/dpdk-devbind.py --force ");
-  command.append("--bind=uio_pci_generic ");
+  command.append("--bind=igb_uio ");
   command.append(m_deviceName.c_str());
   printf("Executing %s\n", command.c_str());
   if (system(command.c_str()))
@@ -539,20 +541,22 @@ ssize_t
 DPDKNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf *pkt;
-  char *data;
+//  char *data;
 
   pkt = rte_pktmbuf_alloc(m_mempool); 
   pkt->data_len = length;
   pkt->pkt_len = length;
 
   printf("dpdknetdevice write\n");
-  data = rte_pktmbuf_append(pkt, length);
-  if (data != NULL)
-    memcpy(data, buffer, length);
-  else {
-    printf("Unable to memcpy\n");
-    return -1; // Unable to append length in rte_pktmbuf_append()
-  }
+  char* pkt_data = rte_pktmbuf_mtod_offset(pkt, char*, 0);
+  memcpy(pkt_data, buffer, length);
+//  data = rte_pktmbuf_append(pkt, length);
+//  if (data != NULL)
+//    memcpy(data, buffer, length);
+//  else {
+//    printf("Unable to memcpy\n");
+//    return -1; // Unable to append length in rte_pktmbuf_append()
+//  }
 
   if(rte_ring_enqueue(m_txRing, pkt)) {
     printf("Unable to enqueue\n");

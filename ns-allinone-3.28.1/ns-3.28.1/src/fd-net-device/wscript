@@ -44,6 +44,26 @@ def configure(conf):
         blddir = os.path.abspath(os.path.join(conf.bldnode.abspath(), conf.variant))
         dir = os.path.abspath(os.path.join(blddir, "src/fd-net-device"))
         conf.env.append_value('NS3_EXECUTABLE_PATH', dir)
+
+        assert os.environ.get('RTE_SDK', '') != '', "RTE_SDK environment variable not set"
+        assert os.environ.get('RTE_TARGET', '') != '', "RTE_TARGET environment variable not set"
+        dpdk_build = os.path.join(os.environ['RTE_SDK'], os.environ['RTE_TARGET'])
+        conf.env.append_value('CXXFLAGS', ['-I' + os.path.join(dpdk_build, 'include'), '-mssse3'])
+        conf.env.append_value('LINKFLAGS', ['-I' + os.path.join(dpdk_build, 'include')])
+        conf.env.append_value('LINKFLAGS', ['-L' + os.path.join(dpdk_build, 'lib')])
+        conf.env.SHLIB_MARKER += ',-lrte_eal,-lrte_ethdev,-lrte_pmd_virtio,-lrte_pmd_e1000,-lrte_pmd_ixgbe,-lrte_pmd_i40e,-lnuma,-ldl,-lrte_mempool,-lrte_mbuf,-lrte_ring'
+
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_eal'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_ethdev'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_virtio'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_e1000'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_ixgbe'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_i40e'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lnuma'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-ldl'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_mempool'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_mbuf'])
+        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_ring'])
     else:
         # Add this module to the list of modules that won't be built
         # if they are enabled.
@@ -181,9 +201,6 @@ def build(bld):
         module.env.append_value("DEFINES", 
            "PLANETLAB_TAP_CREATOR=\"%s\"" % (creator.target,))
 
-    if bld.env['ENABLE_EXAMPLES']:
-        bld.recurse('examples')
-
     assert os.environ.get('RTE_SDK', '') != '', "RTE_SDK environment variable not set"
     assert os.environ.get('RTE_TARGET', '') != '', "RTE_TARGET environment variable not set"
 
@@ -193,21 +210,8 @@ def build(bld):
     else:
         os.environ['LD_LIBRARY_PATH'] += ':' + os.path.join(dpdk_build, 'lib')
 
-    module.env.append_value("CXXFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
-    module.env.append_value("CXXFLAGS", ['-mssse3'])
-    module.env.append_value("LINKFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])
-    module.env.append_value("LINKFLAGS", ['-L' + os.path.join(dpdk_build, 'lib')])
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_eal')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_ethdev')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_pmd_virtio')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_pmd_e1000')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_pmd_ixgbe')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_pmd_i40e')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lnuma')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-ldl')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_mempool')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_mbuf')
-    module.env.append_value ('SHLIB_MARKER', '-Wl,-lrte_ring')
+    if bld.env['ENABLE_EXAMPLES']:
+        bld.recurse('examples')
 
     bld.ns3_python_bindings()
 

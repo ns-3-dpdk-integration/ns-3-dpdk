@@ -7,22 +7,6 @@ def build(bld):
     if not env['ENABLE_FDNETDEV']:
         return
 
-    assert os.environ.get('RTE_SDK', '') != '', "RTE_SDK environment variable not set"
-    assert os.environ.get('RTE_TARGET', '') != '', "RTE_TARGET environment variable not set"
-
-    dpdk_build = os.path.join(os.environ['RTE_SDK'], os.environ['RTE_TARGET'])
-    if os.environ.get('LD_LIBRARY_PATH', '') == '':
-        os.environ['LD_LIBRARY_PATH'] = os.path.join(dpdk_build, 'lib')
-    else:
-        os.environ['LD_LIBRARY_PATH'] += ':' + os.path.join(dpdk_build, 'lib')
-
-    bld.env.append_value("CXXFLAGS", ['-I' + os.path.join(dpdk_build, 'include')])    
-
-    obj = bld.create_ns3_program('dummy-network', ['fd-net-device', 'internet', 'internet-apps'])
-    obj.source = 'dummy-network.cc'
-    obj = bld.create_ns3_program('fd2fd-onoff', ['fd-net-device', 'internet', 'applications'])
-    obj.source = 'fd2fd-onoff.cc'
-
     if bld.env["ENABLE_REAL_TIME"]:
         obj = bld.create_ns3_program('realtime-dummy-network', ['fd-net-device', 'internet', 'internet-apps'])
         obj.source = 'realtime-dummy-network.cc'
