@@ -74,9 +74,9 @@ EmuFdNetDeviceHelper::SetDeviceName (std::string deviceName)
 }
 
 void
-EmuFdNetDeviceHelper::SetDPDKMode (int argc, char **argv)
+EmuFdNetDeviceHelper::SetDpdkMode (int argc, char **argv)
 {
-  FdNetDeviceHelper::SetTypeId ("ns3::DPDKNetDevice");
+  FdNetDeviceHelper::SetTypeId ("ns3::DpdkNetDevice");
   m_dpdkMode = true;
   m_ealArgc = argc;
   m_ealArgv = argv;
@@ -109,9 +109,9 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
 
   if (m_dpdkMode)
     {
-      Ptr<DPDKNetDevice> dpdkDevice = StaticCast<DPDKNetDevice> (device);
+      Ptr<DpdkNetDevice> dpdkDevice = StaticCast<DpdkNetDevice> (device);
       dpdkDevice->SetDeviceName (m_deviceName);
-      dpdkDevice->InitDPDK (m_ealArgc, m_ealArgv);
+      dpdkDevice->InitDpdk (m_ealArgc, m_ealArgv);
       return;
     }
 

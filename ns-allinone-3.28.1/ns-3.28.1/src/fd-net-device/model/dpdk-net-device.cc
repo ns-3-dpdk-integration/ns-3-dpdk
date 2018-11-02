@@ -42,27 +42,27 @@ static struct rte_eth_conf port_conf = {};
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("DPDKNetDevice");
+NS_LOG_COMPONENT_DEFINE ("DpdkNetDevice");
 
-NS_OBJECT_ENSURE_REGISTERED (DPDKNetDevice);
+NS_OBJECT_ENSURE_REGISTERED (DpdkNetDevice);
 
-volatile bool DPDKNetDevice::m_forceQuit = false;
+volatile bool DpdkNetDevice::m_forceQuit = false;
 
-DPDKNetDeviceReader::DPDKNetDeviceReader ()
+DpdkNetDeviceReader::DpdkNetDeviceReader ()
   : m_stop(false),
     m_bufferSize(65536)
 {
 }
 
 void
-DPDKNetDeviceReader::SetBufferSize (uint32_t bufferSize)
+DpdkNetDeviceReader::SetBufferSize (uint32_t bufferSize)
 {
   NS_LOG_FUNCTION (this << bufferSize);
   m_bufferSize = bufferSize;
 }
 
 void
-DPDKNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
+DpdkNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
 {
   NS_LOG_FUNCTION (this << device);
 
@@ -72,7 +72,7 @@ DPDKNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
     }
 }
 
-DPDKNetDeviceReader::Data DPDKNetDeviceReader::DoRead (void)
+DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 {
   NS_LOG_FUNCTION (this);
 
@@ -91,15 +91,15 @@ DPDKNetDeviceReader::Data DPDKNetDeviceReader::DoRead (void)
       free (buf);
       buf = 0;
     }
-  return DPDKNetDeviceReader::Data (buf, len);
+  return DpdkNetDeviceReader::Data (buf, len);
 }
 
 void
-DPDKNetDeviceReader::Run (void)
+DpdkNetDeviceReader::Run (void)
 {
   while (!m_stop)
     {
-      struct DPDKNetDeviceReader::Data data = DoRead ();
+      struct DpdkNetDeviceReader::Data data = DoRead ();
       // reading stops when m_len is zero
       if (data.m_len == 0)
         {
@@ -115,15 +115,15 @@ DPDKNetDeviceReader::Run (void)
 }
 
 void
-DPDKNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
+DpdkNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
 {
   m_readCallback = readCallback;
-  m_readThread = Create<SystemThread> (MakeCallback (&DPDKNetDeviceReader::Run, this));
+  m_readThread = Create<SystemThread> (MakeCallback (&DpdkNetDeviceReader::Run, this));
   m_readThread->Start ();
 }
 
 void
-DPDKNetDeviceReader::Stop ()
+DpdkNetDeviceReader::Stop ()
 {
   m_stop = true;
   // join the read thread
@@ -137,17 +137,17 @@ DPDKNetDeviceReader::Stop ()
 }
 
 TypeId
-DPDKNetDevice::GetTypeId (void)
+DpdkNetDevice::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::DPDKNetDevice")
+  static TypeId tid = TypeId ("ns3::DpdkNetDevice")
     .SetParent<FdNetDevice> ()
     .SetGroupName ("FdNetDevice")
-    .AddConstructor<DPDKNetDevice> ()
+    .AddConstructor<DpdkNetDevice> ()
   ;
   return tid;
 }
 
-DPDKNetDevice::DPDKNetDevice ()
+DpdkNetDevice::DpdkNetDevice ()
 {
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
@@ -156,13 +156,13 @@ DPDKNetDevice::DPDKNetDevice ()
 }
 
 void
-DPDKNetDevice::SetDeviceName (std::string deviceName)
+DpdkNetDevice::SetDeviceName (std::string deviceName)
 {
   m_deviceName = deviceName;
 }
 
 void
-DPDKNetDevice::StartDevice (void)
+DpdkNetDevice::StartDevice (void)
 {
   NS_LOG_FUNCTION (this);
   //
@@ -173,7 +173,7 @@ DPDKNetDevice::StartDevice (void)
   //
   m_nodeId = GetNode ()->GetId ();
 
-  m_reader = Create<DPDKNetDeviceReader> ();
+  m_reader = Create<DpdkNetDeviceReader> ();
   // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
   m_reader->SetFdNetDevice (this);
   m_reader->SetBufferSize (m_mtu + 22);
@@ -183,7 +183,7 @@ DPDKNetDevice::StartDevice (void)
 }
 
 void
-DPDKNetDevice::StopDevice (void)
+DpdkNetDevice::StopDevice (void)
 {
   NS_LOG_FUNCTION (this);
   ns3::FdNetDevice::StopDevice ();
@@ -194,7 +194,7 @@ DPDKNetDevice::StopDevice (void)
 }
 
 void
-DPDKNetDevice::CheckAllPortsLinkStatus(void)
+DpdkNetDevice::CheckAllPortsLinkStatus(void)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
 #define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
@@ -250,7 +250,7 @@ DPDKNetDevice::CheckAllPortsLinkStatus(void)
 }
 
 void
-DPDKNetDevice::SignalHandler(int signum)
+DpdkNetDevice::SignalHandler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
 		printf("\n\nSignal %d received, preparing to exit...\n",
@@ -260,7 +260,7 @@ DPDKNetDevice::SignalHandler(int signum)
 }
 
 void
-DPDKNetDevice::HandleTx()
+DpdkNetDevice::HandleTx()
 {
   int queueId = 0, nb_tx, ret;
   void** tx_buffer;
@@ -283,7 +283,7 @@ DPDKNetDevice::HandleTx()
 }
 
 void
-DPDKNetDevice::HandleRx()
+DpdkNetDevice::HandleRx()
 {
   int queueId = 0;
   struct rte_mbuf* rx_buffer[MAX_RX_BURST];
@@ -308,9 +308,9 @@ DPDKNetDevice::HandleRx()
 }
 
 int
-DPDKNetDevice::LaunchCore(void *arg)
+DpdkNetDevice::LaunchCore(void *arg)
 {
-  DPDKNetDevice *dpdkNetDevice = (DPDKNetDevice*) arg;
+  DpdkNetDevice *dpdkNetDevice = (DpdkNetDevice*) arg;
   unsigned lcore_id;
 	lcore_id = rte_lcore_id();	
   if(lcore_id != 1)
@@ -334,13 +334,13 @@ DPDKNetDevice::LaunchCore(void *arg)
 }
 
 void
-DPDKNetDevice::PrintCheck()
+DpdkNetDevice::PrintCheck()
 {
   printf("hello world\n");
 }
 
 bool 
-DPDKNetDevice::IsLinkUp (void) const
+DpdkNetDevice::IsLinkUp (void) const
 {
   struct rte_eth_link link;
   memset(&link, 0, sizeof(link));
@@ -352,10 +352,10 @@ DPDKNetDevice::IsLinkUp (void) const
 
 
 void
-DPDKNetDevice::InitDPDK (int argc, char** argv)
+DpdkNetDevice::InitDpdk (int argc, char** argv)
 {
 
-  // Initialize DPDK EAL
+  // Initialize Dpdk EAL
   int ret = rte_eal_init(argc, argv);
   if (ret < 0)
     {
@@ -366,7 +366,7 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
   signal(SIGINT, SignalHandler);
 	signal(SIGTERM, SignalHandler);
 
-  // Bind device to DPDK
+  // Bind device to Dpdk
   std::string command;
   printf("Binding %s to driver uio_pci_generic\n", command.c_str());
   command.append("$RTE_SDK/usertools/dpdk-devbind.py --force ");
@@ -378,7 +378,7 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
       rte_exit(EXIT_FAILURE, "Execution failed - bye\n");
     }
 
-  // wait for the device to bind to DPDK
+  // wait for the device to bind to Dpdk
   sleep (5);  /* 5 second */
 
   unsigned nb_ports = rte_eth_dev_count();
@@ -531,14 +531,14 @@ DPDKNetDevice::InitDPDK (int argc, char** argv)
 }
 
 void 
-DPDKNetDevice::SetRteRingSize(int ringSize)
+DpdkNetDevice::SetRteRingSize(int ringSize)
 {
   m_ringSize = ringSize;
 }
 
 
 ssize_t
-DPDKNetDevice::Write(uint8_t *buffer, size_t length)
+DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf *pkt;
 //  char *data;
@@ -570,7 +570,7 @@ DPDKNetDevice::Write(uint8_t *buffer, size_t length)
 
 
 ssize_t
-DPDKNetDevice::Read(uint8_t *buffer)
+DpdkNetDevice::Read(uint8_t *buffer)
 {
   // printf("READ called\n");
   void *item;

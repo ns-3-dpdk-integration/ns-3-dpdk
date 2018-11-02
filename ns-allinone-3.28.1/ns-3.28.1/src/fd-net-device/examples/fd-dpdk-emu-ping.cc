@@ -17,7 +17,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("DPDKEmulationPingExample");
+NS_LOG_COMPONENT_DEFINE ("DpdkEmulationPingExample");
 
 static void
 StatsSampling (Ptr<QueueDisc> qdisc, Ptr<NetDevice> device, double samplingPeriod)
@@ -41,7 +41,7 @@ PingRtt (std::string context, Time rtt)
 int
 main (int argc, char *argv[])
 {
-  NS_LOG_INFO ("DPDK Emulation Ping Example");
+  NS_LOG_INFO ("Dpdk Emulation Ping Example");
 
   std::string deviceName ("0000:00:1f.6");
   std::string macClient ("3c:52:82:67:78:31");
@@ -123,7 +123,7 @@ main (int argc, char *argv[])
   strcpy(ealArgv[5], "-d");
   ealArgv[6] = new char[20];
   strcpy(ealArgv[6], "librte_mempool_ring.so");
-  emu.SetDPDKMode (7, ealArgv);
+  emu.SetDpdkMode (7, ealArgv);
 
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);

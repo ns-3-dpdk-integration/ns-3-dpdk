@@ -17,13 +17,13 @@ class Node;
 
 /**
  * \ingroup fd-net-device
- * \brief This class performs the actual data reading from the DPDKNetDevice.
+ * \brief This class performs the actual data reading from the DpdkNetDevice.
  */
-class DPDKNetDeviceReader : public Object
+class DpdkNetDeviceReader : public Object
 {
 public:
 
-  DPDKNetDeviceReader ();
+  DpdkNetDeviceReader ();
 
   /**
    * Set size of the read buffer.
@@ -35,7 +35,7 @@ public:
    */
   void SetFdNetDevice (Ptr<FdNetDevice> device);
   
-  /** The asynchronous function which performs read operation from DPDKNetDevice. */
+  /** The asynchronous function which performs read operation from DpdkNetDevice. */
   void Run (void);
 
   /**
@@ -76,7 +76,7 @@ protected:
 
 private:
 
-  DPDKNetDeviceReader::Data DoRead (void);
+  DpdkNetDeviceReader::Data DoRead (void);
   
   Ptr<FdNetDevice> m_device;
 
@@ -96,12 +96,12 @@ private:
 /**
  * \ingroup fd-net-device
  *
- * \brief a NetDevice to read/write network traffic from/into a dpdk enabled port.
+ * \brief a NetDevice to read/write network traffic from/into a Dpdk enabled port.
  *
- * A DPDKNetDevice object will read and write frames/packets from/to a dpdk enabled port.
+ * A DpdkNetDevice object will read and write frames/packets from/to a Dpdk enabled port.
  *
  */
-class DPDKNetDevice : public FdNetDevice
+class DpdkNetDevice : public FdNetDevice
 {
 public:
   /**
@@ -113,7 +113,7 @@ public:
   /**
    * Constructor for the NetmapNetDevice.
    */
-  DPDKNetDevice ();
+  DpdkNetDevice ();
 
   /**
    * Check the link status of all ports in up to 9s, and print them finally
@@ -121,13 +121,13 @@ public:
   void CheckAllPortsLinkStatus(void);
 
   /**
-   * Initialize DPDK.
+   * Initialize Dpdk.
    * Initializes EAL.
    *
-   * \param argc DPDK EAL args count.
-   * \param argv DPDK EAL args list.
+   * \param argc Dpdk EAL args count.
+   * \param argv Dpdk EAL args list.
    */
-  void InitDPDK (int argc, char** argv);
+  void InitDpdk (int argc, char** argv);
 
   /**
    * Set device name.
@@ -155,7 +155,7 @@ public:
    */
   static int LaunchCore(void *arg);
 
-  // utility to check dpdknetdevice launch core in working
+  // utility to check Dpdknetdevice launch core in working
   void PrintCheck();
 
   /**
@@ -216,9 +216,9 @@ private:
   /**
    * Reader for the file descriptor.
    */
-  Ptr<DPDKNetDeviceReader> m_reader;
+  Ptr<DpdkNetDeviceReader> m_reader;
 
-  static volatile bool m_forceQuit;           //!< Condition variable for DPDK to stop
+  static volatile bool m_forceQuit;           //!< Condition variable for Dpdk to stop
   int m_ringSize;                             //!< Size of tx and rx ring         
   struct rte_ring *m_txRing;                  //!< Instance of rte ring for transmission
   struct rte_ring *m_rxRing;                  //!< Instance of rte ring for receival

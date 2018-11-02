@@ -63,12 +63,12 @@ public:
   void SetDeviceName (std::string deviceName);
 
   /**
-   * Set the device in DPDK mode.
+   * Set the device in Dpdk mode.
    *
-   * \param argc DPDK EAL args count.
-   * \param argv DPDK EAL args list.
+   * \param argc Dpdk EAL args count.
+   * \param argv Dpdk EAL args list.
    */
-  void SetDPDKMode (int argc, char **argv);
+  void SetDpdkMode (int argc, char **argv);
 
 protected:
 
@@ -104,12 +104,12 @@ protected:
   bool m_dpdkMode;
 
   /**
-   * DPDK EAL arguements count.
+   * Dpdk EAL arguements count.
    */
   int m_ealArgc;
 
   /**
-   * DPDK EAL arguements list.
+   * Dpdk EAL arguements list.
    */
   char **m_ealArgv;
 };
