@@ -23,13 +23,6 @@ static void
 StatsSampling (Ptr<QueueDisc> qdisc, Ptr<NetDevice> device, double samplingPeriod)
 {
   Simulator::Schedule (Seconds (samplingPeriod), &StatsSampling, qdisc, device, samplingPeriod);
-//   Ptr<NetmapNetDevice> d = DynamicCast<NetmapNetDevice> (device);
-
-//   std::cout << qdisc->GetNPackets () << " packets in the traffic-control queue disc" << std::endl;
-//   if (d)
-//     {
-//       std::cout << d->GetBytesInNetmapTxRing () << " bytes inflight in the netmap tx ring" << std::endl;
-//     }
 }
 
 static void
@@ -49,7 +42,6 @@ main (int argc, char *argv[])
   std::string remote ("10.100.12.1");
 
   double samplingPeriod = 0.5; // s
- // uint32_t packetsSize = 1400; // bytes
   bool bql = false;
 
   CommandLine cmd;
@@ -124,7 +116,6 @@ main (int argc, char *argv[])
   ealArgv[6] = new char[20];
   strcpy(ealArgv[6], "librte_mempool_ring.so");
   emu.SetDpdkMode (7, ealArgv);
-
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);
   Ptr<NetDevice> device = devices.Get (0);
@@ -141,18 +132,6 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Add Internet Stack");
   InternetStackHelper internetStackHelper;
   internetStackHelper.Install (node);
-
-  // we install the pfifo_fast queue disc on the dodk emulated device and we sample the
-  // queue disc backlog in packets and the inflight in the dpdk tx ring in bytes
-  TrafficControlHelper tch;
-  tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
-  if (bql)
-    {
-      tch.SetQueueLimits ("ns3::DynamicQueueLimits");
-    }
-
-  QueueDiscContainer qdiscs = tch.Install (devices);
-  Simulator::Schedule (Seconds (samplingPeriod), &StatsSampling, qdiscs.Get (0), device, samplingPeriod);
 
   NS_LOG_INFO ("Create IPv4 Interface");
   Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
@@ -175,7 +154,6 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  // Ipv4Address gateway ("10.0.2.2");
   Ipv4Address gateway ("10.100.12.1");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
@@ -208,8 +186,6 @@ main (int argc, char *argv[])
   // Hook a trace to print something when the response comes back.
   //
   Config::Connect ("/Names/app/Rtt", MakeCallback (&PingRtt));
-
-  //Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (packetsSize));
 
   //
   // Enable a promiscuous pcap trace to see what is coming and going on our device.
