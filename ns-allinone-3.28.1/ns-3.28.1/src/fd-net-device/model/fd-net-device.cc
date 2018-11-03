@@ -627,7 +627,6 @@ FdNetDevice::Write (uint8_t *buffer, size_t length)
   return write (m_fd, buffer, length);
 }
 
-// runs in a separate thread
 ssize_t
 FdNetDevice::Read (uint8_t* buffer)
 {

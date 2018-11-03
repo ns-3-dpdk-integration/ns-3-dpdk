@@ -33,13 +33,6 @@
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
 
-static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
-
-static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
-
-static struct rte_eth_conf port_conf = {};
-
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DpdkNetDevice");
@@ -360,6 +353,8 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
 
   // Set number of logical cores to 1
   unsigned int nb_lcores = 1;
+  static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
+  static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
   unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
@@ -373,6 +368,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
       rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
     }
   
+  static struct rte_eth_conf port_conf = {};
   // Initialize port
 	port_conf.rxmode = {};
 	port_conf.rxmode.split_hdr_size = 0;
@@ -437,6 +433,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
         ret, m_portId);
     }
 
+  static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
   /* Initialize TX buffers */
   tx_buffer[m_portId] = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket("tx_buffer",
       RTE_ETH_TX_BUFFER_SIZE(MAX_PKT_BURST), 0,

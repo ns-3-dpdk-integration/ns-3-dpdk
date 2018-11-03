@@ -206,6 +206,7 @@ public:
 
   /**
    * Read packet data from device.
+   * Runs on a separate thread.
    * \param buffer Buffer the data to be read to.
    * \return The size of data read.
    */
