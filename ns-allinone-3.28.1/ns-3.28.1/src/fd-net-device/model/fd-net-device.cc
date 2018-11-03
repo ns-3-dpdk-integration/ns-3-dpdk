@@ -67,7 +67,6 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
 
   ssize_t len = 0;
 
-  printf("In DORead\n");
   if (m_device)
     {
       len = m_device->Read (buf);
