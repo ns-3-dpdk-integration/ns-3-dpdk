@@ -354,18 +354,6 @@ DpdkNetDevice::IsLinkUp (void) const
 void
 DpdkNetDevice::InitDpdk (int argc, char** argv)
 {
-
-  // Initialize Dpdk EAL
-  int ret = rte_eal_init(argc, argv);
-  if (ret < 0)
-    {
-      rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
-    }
-
-  m_forceQuit = false;
-  signal(SIGINT, SignalHandler);
-	signal(SIGTERM, SignalHandler);
-
   // Bind device to Dpdk
   std::string command;
   printf("Binding %s to driver uio_pci_generic\n", command.c_str());
@@ -380,6 +368,17 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
 
   // wait for the device to bind to Dpdk
   sleep (5);  /* 5 second */
+
+  // Initialize Dpdk EAL
+  int ret = rte_eal_init(argc, argv);
+  if (ret < 0)
+    {
+      rte_exit(EXIT_FAILURE, "Invalid EAL arguments\n");
+    }
+
+  m_forceQuit = false;
+  signal(SIGINT, SignalHandler);
+	signal(SIGTERM, SignalHandler);
 
   unsigned nb_ports = rte_eth_dev_count();
 	if (nb_ports == 0)
