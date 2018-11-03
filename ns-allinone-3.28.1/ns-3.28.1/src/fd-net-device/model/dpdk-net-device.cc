@@ -300,7 +300,7 @@ DpdkNetDevice::LaunchCore(void *arg)
     dpdkNetDevice->HandleRx();
 
     // we use a period to check and notify of 200 us; it is a value close to the interrupt coalescence period of a real device
-    usleep(200);
+    usleep(20);
   }
   
   return 0;  
@@ -491,6 +491,10 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
   struct rte_mbuf *pkt;
 
   pkt = rte_pktmbuf_alloc(m_mempool); 
+  if (!pkt) {
+    return -1;
+  }
+
   pkt->data_len = length;
   pkt->pkt_len = length;
 
