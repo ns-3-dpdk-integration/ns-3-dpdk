@@ -53,17 +53,6 @@ def configure(conf):
         conf.env.append_value('LINKFLAGS', ['-L' + os.path.join(dpdk_build, 'lib')])
         conf.env.SHLIB_MARKER += ',-lrte_eal,-lrte_ethdev,-lrte_pmd_virtio,-lrte_pmd_e1000,-lrte_pmd_ixgbe,-lrte_pmd_i40e,-lnuma,-ldl,-lrte_mempool,-lrte_mbuf,-lrte_ring'
 
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_eal'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_ethdev'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_virtio'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_e1000'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_ixgbe'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_pmd_i40e'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lnuma'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-ldl'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_mempool'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_mbuf'])
-        # conf.env.append_value('SHLIB_MARKER', ['-Wl,-lrte_ring'])
     else:
         # Add this module to the list of modules that won't be built
         # if they are enabled.
