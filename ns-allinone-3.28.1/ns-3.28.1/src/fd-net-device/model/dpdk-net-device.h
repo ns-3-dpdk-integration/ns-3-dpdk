@@ -5,7 +5,6 @@
 #ifndef DPDK_NET_DEVICE_H
 #define DPDK_NET_DEVICE_H
 
-
 #include "fd-net-device.h"
 
 #include <rte_ring.h>
@@ -35,7 +34,9 @@ public:
    */
   void SetFdNetDevice (Ptr<FdNetDevice> device);
   
-  /** The asynchronous function which performs read operation from DpdkNetDevice. */
+  /** 
+   * The asynchronous function which performs read operation from DpdkNetDevice. 
+   */
   void Run (void);
 
   /**
@@ -47,7 +48,7 @@ public:
   void Start (Callback<void, uint8_t *, ssize_t> readCallback);
 
   /**
-   * Stop the read thread and reset internal state.  This does not
+   * Stop the read thread and reset internal state. This does not
    * close the file descriptor used for reading.
    */
   void Stop (void);
@@ -154,9 +155,6 @@ public:
    * A function to handle rx & tx operations.
    */
   static int LaunchCore(void *arg);
-
-  // utility to check Dpdknetdevice launch core in working
-  void PrintCheck();
 
   /**
    * Transmit packets in burst from the rte_ring to the nic.

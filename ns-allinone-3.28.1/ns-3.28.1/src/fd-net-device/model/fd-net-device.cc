@@ -632,7 +632,7 @@ ssize_t
 FdNetDevice::Read (uint8_t* buffer)
 {
   NS_LOG_FUNCTION (this << buffer);
-  printf("Callling FdNetDevice Read\n");
+
   return read (m_fd, buffer, m_mtu + 22);
 }
 
