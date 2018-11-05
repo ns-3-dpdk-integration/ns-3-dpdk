@@ -67,7 +67,7 @@ DpdkNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
 
 DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 {
-  NS_LOG_FUNCTION (this);
+  // NS_LOG_FUNCTION (this); because this is called infinitely
 
   uint8_t *buf = (uint8_t *)malloc (m_bufferSize);
   NS_ABORT_MSG_IF (buf == 0, "malloc() failed");
@@ -90,6 +90,8 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 void
 DpdkNetDeviceReader::Run (void)
 {
+  NS_LOG_FUNCTION (this);
+
   while (!m_stop)
     {
       struct DpdkNetDeviceReader::Data data = DoRead ();
@@ -110,6 +112,8 @@ DpdkNetDeviceReader::Run (void)
 void
 DpdkNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
 {
+  NS_LOG_FUNCTION (this);
+
   m_readCallback = readCallback;
   m_readThread = Create<SystemThread> (MakeCallback (&DpdkNetDeviceReader::Run, this));
   m_readThread->Start ();
@@ -118,6 +122,8 @@ DpdkNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
 void
 DpdkNetDeviceReader::Stop ()
 {
+  NS_LOG_FUNCTION (this);
+
   m_stop = true;
   // join the read thread
   if (m_readThread != 0)
@@ -151,6 +157,8 @@ DpdkNetDevice::DpdkNetDevice ()
 void
 DpdkNetDevice::SetDeviceName (std::string deviceName)
 {
+  NS_LOG_FUNCTION (this);
+
   m_deviceName = deviceName;
 }
 
@@ -179,6 +187,7 @@ void
 DpdkNetDevice::StopDevice (void)
 {
   NS_LOG_FUNCTION (this);
+
   ns3::FdNetDevice::StopDevice ();
   m_reader->Stop();
   m_forceQuit = true;
@@ -189,15 +198,17 @@ DpdkNetDevice::StopDevice (void)
 void
 DpdkNetDevice::CheckAllPortsLinkStatus(void)
 {
-#define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
-	uint8_t count, all_ports_up, print_flag = 0;
+  NS_LOG_FUNCTION (this);
+
+  #define CHECK_INTERVAL 100 /* 100ms */
+  #define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+	uint8_t count, allPortsUp, printFlag = 0;
 	struct rte_eth_link link;
 
 	fflush(stdout);
 	for (count = 0; count <= MAX_CHECK_TIME; count++) {
 
-		all_ports_up = 1;
+		allPortsUp = 1;
 		
     if (m_forceQuit)
 			return;
@@ -206,31 +217,31 @@ DpdkNetDevice::CheckAllPortsLinkStatus(void)
 		memset(&link, 0, sizeof(link));
 		rte_eth_link_get(m_portId, &link);
 		/* print link status if flag set */
-		if (print_flag == 1) {
+		if (printFlag == 1) {
 			if (link.link_status)
         continue;
 			else
 				printf("Port %d Link Down\n", m_portId);
 			continue;
 		}
-		/* clear all_ports_up flag if any link down */
+		/* clear allPortsUp flag if any link down */
 		if (link.link_status == ETH_LINK_DOWN) {
-			all_ports_up = 0;
+			allPortsUp = 0;
 			break;
 		}
 		
     /* after finally printing all link status, get out */
-		if (print_flag == 1)
+		if (printFlag == 1)
 			break;
 
-		if (all_ports_up == 0) {
+		if (allPortsUp == 0) {
 			fflush(stdout);
 			rte_delay_ms(CHECK_INTERVAL);
 		}
 
-		/* set the print_flag if all ports up or timeout */
-		if (all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
-			print_flag = 1;
+		/* set the printFlag if all ports up or timeout */
+		if (allPortsUp == 1 || count == (MAX_CHECK_TIME - 1)) {
+			printFlag = 1;
 		}
 	}
 }
@@ -248,19 +259,19 @@ DpdkNetDevice::SignalHandler(int signum)
 void
 DpdkNetDevice::HandleTx()
 {
-  int queueId = 0, nb_tx, ret;
-  void** tx_buffer;
+  int queueId = 0, nbTx, ret;
+  void** txBuffer;
   
-  tx_buffer = (void**) malloc(MAX_TX_BURST * sizeof(struct rte_mbuf*));
-  nb_tx = rte_ring_dequeue_burst(m_txRing, tx_buffer, MAX_TX_BURST, NULL);
+  txBuffer = (void**) malloc(MAX_TX_BURST * sizeof(struct rte_mbuf*));
+  nbTx = rte_ring_dequeue_burst(m_txRing, txBuffer, MAX_TX_BURST, NULL);
   
-  if(nb_tx == 0)
+  if(nbTx == 0)
       return;
   do {
-    ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf**) tx_buffer, nb_tx);
-    tx_buffer += ret;
-    nb_tx -= ret;
-  } while( nb_tx > 0 );
+    ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf**) txBuffer, nbTx);
+    txBuffer += ret;
+    nbTx -= ret;
+  } while( nbTx > 0 );
   
 }
 
@@ -268,13 +279,13 @@ void
 DpdkNetDevice::HandleRx()
 {
   int queueId = 0;
-  struct rte_mbuf* rx_buffer[MAX_RX_BURST];
-  int nb_rx_nic;
+  struct rte_mbuf* rxBuffer[MAX_RX_BURST];
+  int nbRxNic;
   
-  nb_rx_nic = rte_eth_rx_burst(m_portId, queueId, rx_buffer, MAX_RX_BURST);
+  nbRxNic = rte_eth_rx_burst(m_portId, queueId, rxBuffer, MAX_RX_BURST);
   
-  if(nb_rx_nic!=0) {
-    rte_ring_enqueue_burst(m_rxRing, (void **) rx_buffer, nb_rx_nic, NULL);
+  if(nbRxNic!=0) {
+    rte_ring_enqueue_burst(m_rxRing, (void **) rxBuffer, nbRxNic, NULL);
   }
 }
 
@@ -282,9 +293,9 @@ int
 DpdkNetDevice::LaunchCore(void *arg)
 {
   DpdkNetDevice *dpdkNetDevice = (DpdkNetDevice*) arg;
-  unsigned lcore_id;
-	lcore_id = rte_lcore_id();	
-  if(lcore_id != 1)
+  unsigned lcoreId;
+	lcoreId = rte_lcore_id();	
+  if(lcoreId != 1)
     return 0;
 
   while(!m_forceQuit)
@@ -292,7 +303,8 @@ DpdkNetDevice::LaunchCore(void *arg)
     dpdkNetDevice->HandleTx();    
     dpdkNetDevice->HandleRx();
 
-    // we use a period to check and notify of 200 us; it is a value close to the interrupt coalescence period of a real device
+    // we use a period to check and notify of 200 us; it is a value close to
+    // the interrupt coalescence period of a real device
     usleep(20);
   }
   
@@ -314,10 +326,12 @@ DpdkNetDevice::IsLinkUp (void) const
 void
 DpdkNetDevice::InitDpdk (int argc, char** argv)
 {
-  // Bind device to Dpdk
+  NS_LOG_FUNCTION (this << argc << argv);
+
+  NS_LOG_INFO("Binding device to DPDK");
   std::string command;
   command.append("$RTE_SDK/usertools/dpdk-devbind.py --force ");
-  command.append("--bind=igb_uio ");
+  command.append("--bind=uio_pci_generic ");
   command.append(m_deviceName.c_str());
   printf("Executing: %s\n", command.c_str());
   if (system(command.c_str()))
@@ -328,7 +342,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
   // wait for the device to bind to Dpdk
   sleep (5);  /* 5 seconds */
 
-  // Initialize Dpdk EAL
+  NS_LOG_INFO("Initialize DPDK EAL");
   int ret = rte_eal_init(argc, argv);
   if (ret < 0)
     {
@@ -339,28 +353,28 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
   signal(SIGINT, SignalHandler);
 	signal(SIGTERM, SignalHandler);
 
-  unsigned nb_ports = rte_eth_dev_count();
-	if (nb_ports == 0)
+  unsigned nbPorts = rte_eth_dev_count();
+	if (nbPorts == 0)
     {
       rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
     }
 
-  // Get port id of the device
+  NS_LOG_INFO("Get port id of the device");
   if (rte_eth_dev_get_port_by_name (m_deviceName.c_str(), &m_portId) != 0)
     {
       rte_exit(EXIT_FAILURE, "Cannot get port id - bye\n");
     }
 
   // Set number of logical cores to 1
-  unsigned int nb_lcores = 1;
-  static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
-  static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
+  unsigned int nbLcores = 1;
+  static uint16_t nbRxd = RTE_TEST_RX_DESC_DEFAULT;
+  static uint16_t nbTxd = RTE_TEST_TX_DESC_DEFAULT;
 
-  unsigned int nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
-		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
+  unsigned int nbMbufs = RTE_MAX(nbPorts * (nbRxd + nbTxd + MAX_PKT_BURST +
+		nbLcores * MEMPOOL_CACHE_SIZE), 8192U);
 
-	/* create the mbuf pool */
-	m_mempool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
+	NS_LOG_INFO("Create the mbuf pool");
+	m_mempool = rte_pktmbuf_pool_create("mbuf_pool", nbMbufs,
 		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
 
 	if (m_mempool == NULL)
@@ -368,36 +382,35 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
       rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
     }
   
-  static struct rte_eth_conf port_conf = {};
-  // Initialize port
-	port_conf.rxmode = {};
-	port_conf.rxmode.split_hdr_size = 0;
-	port_conf.rxmode.ignore_offload_bitfield = 1;
-	port_conf.rxmode.offloads = DEV_RX_OFFLOAD_CRC_STRIP;
-	port_conf.txmode = {};
-  port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
+  NS_LOG_INFO("Initialize port");
+  static struct rte_eth_conf portConf = {};
+  portConf.rxmode = {};
+	portConf.rxmode.split_hdr_size = 0;
+	portConf.rxmode.ignore_offload_bitfield = 1;
+	portConf.rxmode.offloads = DEV_RX_OFFLOAD_CRC_STRIP;
+	portConf.txmode = {};
+  portConf.txmode.mq_mode = ETH_MQ_TX_NONE;
   
-  struct rte_eth_rxconf rxq_conf;
-  struct rte_eth_txconf txq_conf;
-  struct rte_eth_conf local_port_conf = port_conf;
-  struct rte_eth_dev_info dev_info;
+  struct rte_eth_rxconf reqConf;
+  struct rte_eth_txconf txqConf;
+  struct rte_eth_conf localPortConf = portConf;
+  struct rte_eth_dev_info devInfo;
 
-  /* init port */
   fflush(stdout);
-  rte_eth_dev_info_get(m_portId, &dev_info);
-  if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
+  rte_eth_dev_info_get(m_portId, &devInfo);
+  if (devInfo.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
     {
-      local_port_conf.txmode.offloads |=
+      localPortConf.txmode.offloads |=
         DEV_TX_OFFLOAD_MBUF_FAST_FREE;
     }
-  ret = rte_eth_dev_configure(m_portId, 1, 1, &local_port_conf);
+  ret = rte_eth_dev_configure(m_portId, 1, 1, &localPortConf);
   if (ret < 0)
     {
       rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
           ret, m_portId);
     }
 
-  ret = rte_eth_dev_adjust_nb_rx_tx_desc(m_portId, &nb_rxd, &nb_txd);
+  ret = rte_eth_dev_adjust_nb_rx_tx_desc(m_portId, &nbRxd, &nbTxd);
   if (ret < 0)
     {
       rte_exit(EXIT_FAILURE,
@@ -405,13 +418,13 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
           ret, m_portId);
     }
 
-  /* init one RX queue */
+  NS_LOG_INFO("Initialize one Rx queue");
   fflush(stdout);
-  rxq_conf = dev_info.default_rxconf;
-  rxq_conf.offloads = local_port_conf.rxmode.offloads;
-  ret = rte_eth_rx_queue_setup(m_portId, 0, nb_rxd,
+  reqConf = devInfo.default_rxconf;
+  reqConf.offloads = localPortConf.rxmode.offloads;
+  ret = rte_eth_rx_queue_setup(m_portId, 0, nbRxd,
               rte_eth_dev_socket_id(m_portId),
-              &rxq_conf,
+              &reqConf,
               m_mempool);
   if (ret < 0)
     {
@@ -419,34 +432,34 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
           ret, m_portId);
     }
 
-  /* init one TX queue on each port */
+  NS_LOG_INFO("Initialize one Tx queue per port");
   fflush(stdout);
-  txq_conf = dev_info.default_txconf;
-  txq_conf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
-  txq_conf.offloads = local_port_conf.txmode.offloads;
-  ret = rte_eth_tx_queue_setup(m_portId, 0, nb_txd,
+  txqConf = devInfo.default_txconf;
+  txqConf.txq_flags = ETH_TXQ_FLAGS_IGNORE;
+  txqConf.offloads = localPortConf.txmode.offloads;
+  ret = rte_eth_tx_queue_setup(m_portId, 0, nbTxd,
       rte_eth_dev_socket_id(m_portId),
-      &txq_conf);
+      &txqConf);
   if (ret < 0)
     {
       rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
         ret, m_portId);
     }
 
-  static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
-  /* Initialize TX buffers */
-  tx_buffer[m_portId] = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket("tx_buffer",
+  NS_LOG_INFO("Initialize Tx buffers");
+  static struct rte_eth_dev_tx_buffer *txBuffer[RTE_MAX_ETHPORTS];
+  txBuffer[m_portId] = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket("tx_buffer",
       RTE_ETH_TX_BUFFER_SIZE(MAX_PKT_BURST), 0,
       rte_eth_dev_socket_id(m_portId));
-  if (tx_buffer[m_portId] == NULL)
+  if (txBuffer[m_portId] == NULL)
     {
       rte_exit(EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
           m_portId);
     }
 
-  rte_eth_tx_buffer_init(tx_buffer[m_portId], MAX_PKT_BURST);
+  rte_eth_tx_buffer_init(txBuffer[m_portId], MAX_PKT_BURST);
 
-  /* Start device */
+  NS_LOG_INFO("Start the device");
   ret = rte_eth_dev_start(m_portId);
   if (ret < 0)
     rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
@@ -459,25 +472,28 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
 
   CheckAllPortsLinkStatus();
 
-  // initialize 2 rings for transmission and receival of packets
+  NS_LOG_INFO("Initialize rte_rings for Tx/Rx intermediate packet processing");
   m_txRing = rte_ring_create("TX", m_ringSize, rte_socket_id(), RING_F_SP_ENQ | RING_F_SC_DEQ);
   if (m_txRing == NULL)
     rte_exit(EXIT_FAILURE, "Error in creating Tx ring.\n");
-  // else 
-  //   printf("Tx ring created successfully.\n");
+  else 
+    NS_LOG_LOGIC("Tx rte_ring created successfully: " << m_txRing);
 
   m_rxRing = rte_ring_create("RX", m_ringSize, rte_socket_id(), RING_F_SP_ENQ | RING_F_SC_DEQ);
   if (m_rxRing == NULL)
     rte_exit(EXIT_FAILURE, "Error in creating Rx ring.\n");
-  // else
-  //   printf("Rx ring created successfully.\n");
+  else
+    NS_LOG_LOGIC("Rx rte_ring created successfully: " << m_rxRing);
 
+  NS_LOG_INFO("Launching core threads");
   rte_eal_mp_remote_launch(LaunchCore, this, CALL_MASTER);
 }
 
 void 
 DpdkNetDevice::SetRteRingSize(int ringSize)
 {
+  NS_LOG_FUNCTION (this << ringSize);
+
   m_ringSize = ringSize;
 }
 
@@ -489,17 +505,18 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 
   pkt = rte_pktmbuf_alloc(m_mempool); 
   if (!pkt) {
+    NS_LOG_ERROR("Cannot allocate packet in mempool");
     return -1;
   }
 
   pkt->data_len = length;
   pkt->pkt_len = length;
 
-  char* pkt_data = rte_pktmbuf_mtod_offset(pkt, char*, 0);
-  memcpy(pkt_data, buffer, length);
+  char* pktData = rte_pktmbuf_mtod_offset(pkt, char*, 0);
+  memcpy(pktData, buffer, length);
 
   if(rte_ring_enqueue(m_txRing, pkt)) {
-    printf("Unable to enqueue\n");
+    NS_LOG_ERROR("Unable to enqueue in Tx rte_ring");
     return -1;
   }
 
@@ -517,6 +534,7 @@ DpdkNetDevice::Read(uint8_t *buffer)
 
   if(rte_ring_dequeue(m_rxRing, &item) != 0)
   {
+    // No object dequeued from Rx rte_ring
     return -1;
   }
 
@@ -526,7 +544,9 @@ DpdkNetDevice::Read(uint8_t *buffer)
   dataBuffer = (uint8_t *) rte_pktmbuf_read(pkt, 0, pkt->pkt_len, dataBuffer);
   
   if(dataBuffer == NULL)
-    printf("rtepktmbuf read not working-mbuf too small\n");
+  {
+    NS_LOG_ERROR("mbuf too small to read packets");
+  }  
 
   memcpy(buffer, dataBuffer, pkt->pkt_len);
 

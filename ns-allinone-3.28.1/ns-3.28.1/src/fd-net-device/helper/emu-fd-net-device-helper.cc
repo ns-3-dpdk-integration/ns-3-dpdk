@@ -76,10 +76,14 @@ EmuFdNetDeviceHelper::SetDeviceName (std::string deviceName)
 void
 EmuFdNetDeviceHelper::SetDpdkMode (int argc, char **argv)
 {
+  NS_LOG_FUNCTION (this);
+
   FdNetDeviceHelper::SetTypeId ("ns3::DpdkNetDevice");
   m_dpdkMode = true;
   m_ealArgc = argc;
   m_ealArgv = argv;
+
+  NS_LOG_LOGIC ("Set DPDK Mode");
 }
 
 std::string

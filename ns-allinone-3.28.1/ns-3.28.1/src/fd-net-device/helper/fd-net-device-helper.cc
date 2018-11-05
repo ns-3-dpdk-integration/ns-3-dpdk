@@ -39,6 +39,7 @@ NS_LOG_COMPONENT_DEFINE ("FdNetDeviceHelper");
 
 FdNetDeviceHelper::FdNetDeviceHelper ()
 {
+  NS_LOG_FUNCTION (this);
   m_deviceFactory.SetTypeId ("ns3::FdNetDevice");
 }
 

@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * 
+ *
  *
  */
 
@@ -37,9 +37,9 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Dpdk Emulation Ping Example");
 
   std::string deviceName ("0000:00:1f.6");
-  std::string macClient ("3c:52:82:67:78:31");
+  std::string macClient ("08:00:27:82:81:0a");
   // ping a real host connected back-to-back through the ethernet interfaces
-  std::string remote ("10.100.12.1");
+  std::string remote ("192.168.43.1");
 
   double samplingPeriod = 0.5; // s
   bool bql = false;
@@ -52,7 +52,7 @@ main (int argc, char *argv[])
 
   Ipv4Address remoteIp (remote.c_str ());
   // the OS IP for the eth0 interfaces is 10.0.1.1, and we set the ns-3 IP for eth0 to 10.0.1.11
-  Ipv4Address localIp ("10.100.15.29");
+  Ipv4Address localIp ("192.168.43.62");
   NS_ABORT_MSG_IF (localIp == "1.2.3.4", "You must change the local IP address before running this example");
 
   Ipv4Mask localMask ("255.255.255.0");
@@ -102,24 +102,24 @@ main (int argc, char *argv[])
   // set the dpdk emulation mode
   char **ealArgv = new char*[20];
   ealArgv[0] = new char[20];
-  strcpy(ealArgv[0], "");
+  strcpy (ealArgv[0], "");
   ealArgv[1] = new char[20];
-  strcpy(ealArgv[1], "-l");
+  strcpy (ealArgv[1], "-l");
   ealArgv[2] = new char[20];
-  strcpy(ealArgv[2], "0,1");
+  strcpy (ealArgv[2], "0,1");
   ealArgv[3] = new char[20];
-  strcpy(ealArgv[3], "-d");
+  strcpy (ealArgv[3], "-d");
   ealArgv[4] = new char[20];
-  strcpy(ealArgv[4], "librte_pmd_e1000.so");
+  strcpy (ealArgv[4], "librte_pmd_e1000.so");
   ealArgv[5] = new char[20];
-  strcpy(ealArgv[5], "-d");
+  strcpy (ealArgv[5], "-d");
   ealArgv[6] = new char[20];
-  strcpy(ealArgv[6], "librte_mempool_ring.so");
+  strcpy (ealArgv[6], "librte_mempool_ring.so");
   emu.SetDpdkMode (7, ealArgv);
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);
   Ptr<NetDevice> device = devices.Get (0);
-  device->SetAttribute ("Address", Mac48AddressValue (macClient.c_str()));
+  device->SetAttribute ("Address", Mac48AddressValue (macClient.c_str ()));
 
   //Ptr<Queue> queue = CreateObject<DropTailQueue> ();
   //device->SetQueue (queue);
@@ -154,7 +154,7 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  Ipv4Address gateway ("10.100.12.1");
+  Ipv4Address gateway ("192.168.43.1");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
