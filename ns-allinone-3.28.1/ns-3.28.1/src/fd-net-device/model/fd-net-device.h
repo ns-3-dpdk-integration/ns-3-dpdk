@@ -69,9 +69,8 @@ public:
   void SetFdNetDevice (Ptr<FdNetDevice> device);
 
 private:
-
   FdReader::Data DoRead (void);
-  
+
   Ptr<FdNetDevice> m_device;
 
   uint32_t m_bufferSize; //!< size of the read buffer
@@ -219,7 +218,7 @@ public:
 
 protected:
   virtual void DoDispose (void);
-  
+
   /**
    * Spin up the device
    */
@@ -258,7 +257,6 @@ protected:
   Ptr<FdNetDeviceFdReader> m_fdReader;
 
 private:
-
   /**
    * \brief Copy constructor
    *

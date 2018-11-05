@@ -197,7 +197,7 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
 
   // Set the MTU of the device to the mtu of the associated network interface
   struct ifreq ifr2;
-  
+
   bzero (&ifr2, sizeof (ifr2));
   strcpy (ifr2.ifr_name, m_deviceName.c_str ());
 
@@ -208,7 +208,7 @@ EmuFdNetDeviceHelper::SetFileDescriptor (Ptr<FdNetDevice> device) const
     {
       NS_FATAL_ERROR ("FdNetDevice::SetFileDescriptor (): Can't ioctl SIOCGIFMTU");
     }
- 
+
   close (mtufd);
   device->SetMtu (ifr.ifr_mtu);
 }

@@ -71,7 +71,6 @@ public:
   void SetDpdkMode (int argc, char **argv);
 
 protected:
-
   /**
    * This method creates an ns3::FdNetDevice attached to a physical network
    * interface

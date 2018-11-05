@@ -405,7 +405,7 @@ void
 FdNetDevice::ForwardUp (void)
 {
 
-  uint8_t *buf = 0; 
+  uint8_t *buf = 0;
   ssize_t len = 0;
 
   {
@@ -684,11 +684,11 @@ FdNetDevice::GetChannel (void) const
 bool
 FdNetDevice::SetMtu (const uint16_t mtu)
 {
-  // The MTU depends on the technology associated to 
+  // The MTU depends on the technology associated to
   // the file descriptor. The user is responsible of
   // setting the correct value of the MTU.
   // If the file descriptor is created using a helper,
-  // then is the responsibility of the helper to set 
+  // then is the responsibility of the helper to set
   // the correct MTU value.
   m_mtu = mtu;
   return true;

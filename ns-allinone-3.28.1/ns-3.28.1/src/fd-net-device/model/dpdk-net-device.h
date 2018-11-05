@@ -21,7 +21,6 @@ class Node;
 class DpdkNetDeviceReader : public Object
 {
 public:
-
   DpdkNetDeviceReader ();
 
   /**
@@ -33,9 +32,9 @@ public:
    * Set the device.
    */
   void SetFdNetDevice (Ptr<FdNetDevice> device);
-  
-  /** 
-   * The asynchronous function which performs read operation from DpdkNetDevice. 
+
+  /**
+   * The asynchronous function which performs read operation from DpdkNetDevice.
    */
   void Run (void);
 
@@ -54,21 +53,26 @@ public:
   void Stop (void);
 
 protected:
-
   /**
    * \brief A structure representing data read.
    */
   struct Data
   {
     /** Default constructor, with null buffer and zero length. */
-    Data () : m_buf (0), m_len (0) {}
+    Data () : m_buf (0),
+              m_len (0)
+    {
+    }
     /**
      * Construct from a buffer of a given length.
      *
      * \param [in] buf The buffer.
      * \param [in] len The size of the buffer, in bytes.
      */
-    Data (uint8_t *buf, ssize_t len) : m_buf (buf), m_len (len) {}
+    Data (uint8_t *buf, ssize_t len) : m_buf (buf),
+                                       m_len (len)
+    {
+    }
     /** The read data buffer. */
     uint8_t *m_buf;
     /** The size of the read data buffer, in bytes. */
@@ -76,9 +80,8 @@ protected:
   };
 
 private:
-
   DpdkNetDeviceReader::Data DoRead (void);
-  
+
   Ptr<FdNetDevice> m_device;
 
   /** Signal the read thread to stop. */
@@ -88,10 +91,10 @@ private:
 
   /** The main thread callback function to invoke when we have data. */
   Callback<void, uint8_t *, ssize_t> m_readCallback;
-  
+
   /** The thread doing the read, created and launched by Start(). */
   Ptr<SystemThread> m_readThread;
-  
+
 };
 
 /**
@@ -119,7 +122,7 @@ public:
   /**
    * Check the link status of all ports in up to 9s, and print them finally
    */
-  void CheckAllPortsLinkStatus(void);
+  void CheckAllPortsLinkStatus (void);
 
   /**
    * Initialize Dpdk.
@@ -132,39 +135,39 @@ public:
 
   /**
    * Set device name.
-   * 
+   *
    * \param deviceName The device name.
    */
-  void SetDeviceName(std::string deviceName);
+  void SetDeviceName (std::string deviceName);
 
   /**
    * A signal handler for SIGINT and SIGTERM signals.
-   * 
+   *
    * \param signum The signal number.
    */
-  static void SignalHandler(int signum);
+  static void SignalHandler (int signum);
 
   /**
    * A function to set the rte_ring size value.
-   * 
+   *
    * \param ringSize Size of the ring.
    */
-  void SetRteRingSize(int ringSize);
+  void SetRteRingSize (int ringSize);
 
   /**
    * A function to handle rx & tx operations.
    */
-  static int LaunchCore(void *arg);
+  static int LaunchCore (void *arg);
 
   /**
    * Transmit packets in burst from the rte_ring to the nic.
    */
-  void HandleTx();
+  void HandleTx ();
 
   /**
    * Receive packets in burst from the nic to the rte_ring.
    */
-  void HandleRx();
+  void HandleRx ();
 
   /**
    * Check the status of the link.
@@ -173,7 +176,6 @@ public:
   bool IsLinkUp (void) const;
 
 protected:
-
   /**
    * Spin up the device
    */
@@ -210,20 +212,19 @@ protected:
   std::string m_deviceName;
 
 private:
-
   /**
    * Reader for the file descriptor.
    */
   Ptr<DpdkNetDeviceReader> m_reader;
 
   static volatile bool m_forceQuit;           //!< Condition variable for Dpdk to stop
-  int m_ringSize;                             //!< Size of tx and rx ring         
+  int m_ringSize;                             //!< Size of tx and rx ring
   struct rte_ring *m_txRing;                  //!< Instance of rte ring for transmission
   struct rte_ring *m_rxRing;                  //!< Instance of rte ring for receival
   struct rte_mempool *m_mempool;              //!< Pakcet memory pool
 
 };
 
-} // 
+} //
 
 #endif /* DPDK_NET_DEVICE_H */

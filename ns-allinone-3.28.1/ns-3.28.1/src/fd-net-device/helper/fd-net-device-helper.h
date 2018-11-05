@@ -93,7 +93,6 @@ public:
   virtual NetDeviceContainer Install (const NodeContainer &c) const;
 
 protected:
-
   /**
    * This method creates an ns3::FdNetDevice and associates it to a node
    *
