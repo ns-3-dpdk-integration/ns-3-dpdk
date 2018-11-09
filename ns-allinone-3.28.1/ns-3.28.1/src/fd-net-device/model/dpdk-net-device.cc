@@ -23,12 +23,12 @@
 #include <rte_malloc.h>
 #include <rte_cycles.h>
 
-#define MAX_PKT_BURST 32 //define the maximum packet burst size
+#define MAX_PKT_BURST 64 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
-#define MAX_TX_BURST 32 //maximum no of packets transmitted from rte_ring to nic
-#define MAX_RX_BURST 32 //maximum no of packets read from nic to rte_ring
+#define MAX_TX_BURST 1 //maximum no of packets transmitted from rte_ring to nic
+#define MAX_RX_BURST 1 //maximum no of packets read from nic to rte_ring
 
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
@@ -76,7 +76,11 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 
   if (m_device)
     {
+      // clock_t begin = clock();
       len = m_device->Read (buf);
+      // clock_t end = clock();
+      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
@@ -151,6 +155,8 @@ DpdkNetDevice::DpdkNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
+  m_lastTx = 0;
+  m_rxBufferHead = 0;
   SetFileDescriptor (1);
 }
 
@@ -279,17 +285,26 @@ DpdkNetDevice::HandleTx ()
   void** txBuffer;
 
   txBuffer = (void**) malloc (MAX_TX_BURST * sizeof(struct rte_mbuf*));
+  clock_t begin = clock();
   nbTx = rte_ring_dequeue_burst (m_txRing, txBuffer, MAX_TX_BURST, NULL);
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("TxRingCheck %f\n", time_spent * 1000000.0);
 
   if (nbTx == 0)
     {
       return;
     }
   do
-    {
-      ret = rte_eth_tx_burst (m_portId, queueId, (struct rte_mbuf**) txBuffer, nbTx);
-      txBuffer += ret;
-      nbTx -= ret;
+  {
+    begin = clock();
+    ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf **)txBuffer, nbTx);
+    end = clock();
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Transmission %f\n", time_spent * 1000000.0);
+    txBuffer += ret;
+    nbTx -= ret;
+    printf("Transmitted %d pkts\n", ret);
     }
   while ( nbTx > 0 );
 
@@ -310,6 +325,17 @@ DpdkNetDevice::HandleRx ()
     }
 }
 
+void DpdkNetDevice::_StartSimulation(void)
+{
+  Simulator::Run();
+  Simulator::Destroy();
+}
+
+void DpdkNetDevice::StartSimulation(void)
+{
+  rte_eal_mp_remote_launch(LaunchCore, this, CALL_MASTER);
+}
+
 int
 DpdkNetDevice::LaunchCore (void *arg)
 {
@@ -318,18 +344,29 @@ DpdkNetDevice::LaunchCore (void *arg)
   lcoreId = rte_lcore_id ();
   if (lcoreId != 1)
     {
+      dpdkNetDevice->_StartSimulation();
       return 0;
     }
 
-  while (!m_forceQuit)
-    {
-      dpdkNetDevice->HandleTx ();
-      dpdkNetDevice->HandleRx ();
+  // while (!m_forceQuit)
+    // {
+
+      // clock_t begin = clock();
+      // // dpdkNetDevice->HandleTx ();
+      // clock_t end = clock();
+      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // // printf("DpdkNetDevice::HandleTx %f\n", time_spent * 1000000.0);
+
+      // begin = clock();
+      // // dpdkNetDevice->HandleRx ();
+      // end = clock();
+      // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // // printf("DpdkNetDevice::HandleRx %f\n", time_spent * 1000000.0);
 
       // we use a period to check and notify of 200 us; it is a value close to
       // the interrupt coalescence period of a real device
-      usleep (20);
-    }
+      // usleep (2);
+    // }
 
   return 0;
 }
@@ -472,17 +509,20 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
     }
 
   NS_LOG_INFO ("Initialize Tx buffers");
-  static struct rte_eth_dev_tx_buffer *txBuffer[RTE_MAX_ETHPORTS];
-  txBuffer[m_portId] = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket ("tx_buffer",
-                                                                    RTE_ETH_TX_BUFFER_SIZE (MAX_PKT_BURST), 0,
-                                                                    rte_eth_dev_socket_id (m_portId));
-  if (txBuffer[m_portId] == NULL)
+  m_txBuffer = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket ("tx_buffer",
+                                    RTE_ETH_TX_BUFFER_SIZE (MAX_PKT_BURST), 0,
+                                    rte_eth_dev_socket_id (m_portId));
+  NS_LOG_INFO ("Initialize Rx buffers");
+  m_rxBuffer = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket ("rx_buffer",
+                                    RTE_ETH_TX_BUFFER_SIZE (MAX_PKT_BURST), 0,
+                                    rte_eth_dev_socket_id (m_portId));
+  if (m_txBuffer == NULL)
     {
       rte_exit (EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
                 m_portId);
     }
 
-  rte_eth_tx_buffer_init (txBuffer[m_portId], MAX_PKT_BURST);
+  rte_eth_tx_buffer_init (m_txBuffer, MAX_PKT_BURST);
 
   NS_LOG_INFO ("Start the device");
   ret = rte_eth_dev_start (m_portId);
@@ -500,7 +540,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
   CheckAllPortsLinkStatus ();
 
   NS_LOG_INFO ("Initialize rte_rings for Tx/Rx intermediate packet processing");
-  m_txRing = rte_ring_create ("TX", m_ringSize, rte_socket_id (), RING_F_SP_ENQ | RING_F_SC_DEQ);
+  m_txRing = rte_ring_create ("TX", m_ringSize, SOCKET_ID_ANY, 0);
   if (m_txRing == NULL)
     {
       rte_exit (EXIT_FAILURE, "Error in creating Tx ring.\n");
@@ -510,7 +550,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
       NS_LOG_LOGIC ("Tx rte_ring created successfully: " << m_txRing);
     }
 
-  m_rxRing = rte_ring_create ("RX", m_ringSize, rte_socket_id (), RING_F_SP_ENQ | RING_F_SC_DEQ);
+  m_rxRing = rte_ring_create ("RX", m_ringSize, SOCKET_ID_ANY, 0);
   if (m_rxRing == NULL)
     {
       rte_exit (EXIT_FAILURE, "Error in creating Rx ring.\n");
@@ -521,7 +561,6 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
     }
 
   NS_LOG_INFO ("Launching core threads");
-  rte_eal_mp_remote_launch (LaunchCore, this, CALL_MASTER);
 }
 
 void
@@ -551,11 +590,20 @@ DpdkNetDevice::Write (uint8_t *buffer, size_t length)
   char* pktData = rte_pktmbuf_mtod_offset (pkt, char*, 0);
   memcpy (pktData, buffer, length);
 
-  if (rte_ring_enqueue (m_txRing, pkt))
-    {
-      NS_LOG_ERROR ("Unable to enqueue in Tx rte_ring");
-      return -1;
-    }
+  // if (rte_ring_enqueue (m_txRing, pkt))
+  //   {
+  //     NS_LOG_ERROR ("Unable to enqueue in Tx rte_ring");
+  //     return -1;
+  //   }
+  int queueId = 0;
+  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
+
+  clock_t now = clock();
+  double timeSinceLastTx = ((double)(now - m_lastTx) / CLOCKS_PER_SEC) * 1000000.0;
+  if (timeSinceLastTx > 400.0) {
+    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  }
+  m_lastTx = now;
 
   return length;
 }
@@ -564,20 +612,32 @@ DpdkNetDevice::Write (uint8_t *buffer, size_t length)
 ssize_t
 DpdkNetDevice::Read (uint8_t *buffer)
 {
-  void *item;
+  // void *item;
   struct rte_mbuf *pkt;
-  uint8_t *dataBuffer;
+  uint8_t *dataBuffer = NULL;
   int length;
 
-  if (rte_ring_dequeue (m_rxRing, &item) != 0)
-    {
-      // No object dequeued from Rx rte_ring
+  // if (rte_ring_dequeue (m_rxRing, &item) != 0)
+  //   {
+  //     // No object dequeued from Rx rte_ring
+  //     return -1;
+  //   }
+  if (m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length)
+  {
+    // for (int i=0; i<MAX_PKT_BURST; i++)
+    //   m_rxBuffer->pkts[i] = NULL;
+    m_rxBufferHead = 0;
+    int queueId = 0;
+    m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
+    if (m_rxBuffer->length == 0) {
       return -1;
     }
+  }
 
-  pkt = (struct rte_mbuf*) item;
+  // pkt = (struct rte_mbuf*) item;
+  pkt = m_rxBuffer->pkts[m_rxBufferHead++];
 
-  dataBuffer = new uint8_t[pkt->pkt_len];
+  // dataBuffer = new uint8_t[pkt->pkt_len];
   dataBuffer = (uint8_t *) rte_pktmbuf_read (pkt, 0, pkt->pkt_len, dataBuffer);
 
   if (dataBuffer == NULL)

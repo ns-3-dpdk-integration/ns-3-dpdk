@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
+#include <time.h>
 
 namespace ns3 {
 
@@ -69,7 +70,11 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
 
   if (m_device)
     {
-      len = m_device->Read (buf);
+      // clock_t begin = clock();
+      len = m_device->Read(buf);
+      // clock_t end = clock();
+      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
@@ -606,11 +611,14 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
     {
       AddPIHeader (buffer, len);
     }
+  // clock_t begin = clock();
+  ssize_t written = Write(buffer, len);
+  // clock_t end = clock();
+  // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  // printf("FdNetDevice::Write %f\n", time_spent * 1000000.0);
+  free(buffer);
 
-  ssize_t written = Write (buffer, len);
-  free (buffer);
-
-  if (written == -1 || (size_t) written != len)
+  if (written == -1 || (size_t)written != len)
     {
       m_macTxDropTrace (packet);
       return false;

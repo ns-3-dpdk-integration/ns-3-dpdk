@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
         ealArgv[1] = new char[20];
         strcpy(ealArgv[1], "-l");
         ealArgv[2] = new char[20];
-        strcpy(ealArgv[2], "0,1,2");
+        strcpy(ealArgv[2], "0,1");
         ealArgv[3] = new char[20];
         strcpy(ealArgv[3], "-d");
         ealArgv[4] = new char[20];
@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
 
         ApplicationContainer clientApps = onoff.Install(node);
         clientApps.Start(Seconds(6.0));
-        clientApps.Stop(Seconds(26.0));
+        clientApps.Stop(Seconds(11.0));
 
         if (ping)
         {
@@ -225,9 +225,12 @@ int main(int argc, char *argv[])
         emu.EnablePcap("fd-client", device);
     }
 
-    Simulator::Stop(Seconds(30));
+    Simulator::Stop(Seconds(12));
+
+    Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
     Simulator::Run();
     Simulator::Destroy();
+    // dpdkNetDevice->StartSimulation();
 
     return 0;
 }

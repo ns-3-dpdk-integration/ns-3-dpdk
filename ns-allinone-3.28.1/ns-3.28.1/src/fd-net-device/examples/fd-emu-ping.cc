@@ -91,8 +91,9 @@ main (int argc, char *argv[])
 {
   NS_LOG_INFO ("Ping Emulation Example");
 
-  std::string deviceName ("eno1");
-  std::string remote ("10.100.12.1"); // example.com
+  std::string deviceName ("enp0s17");
+  std::string remote ("192.168.43.15"); // example.com
+  std::string macClient("08:00:27:b8:57:37");
 
   //
   // Allow the user to override any of the defaults at run-time, via
@@ -104,10 +105,10 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
 
   Ipv4Address remoteIp (remote.c_str ());
-  Ipv4Address localIp ("10.100.15.29");
+  Ipv4Address localIp ("192.168.43.43");
   NS_ABORT_MSG_IF (localIp == "1.2.3.4", "You must change the local IP address before running this example");
 
-  Ipv4Mask localMask ("255.255.252.0");
+  Ipv4Mask localMask ("255.255.255.0");
 
   //
   // Since we are using a real piece of hardware we need to use the realtime
@@ -153,7 +154,7 @@ main (int argc, char *argv[])
   emu.SetDeviceName (deviceName);
   NetDeviceContainer devices = emu.Install (node);
   Ptr<NetDevice> device = devices.Get (0);
-  device->SetAttribute ("Address", Mac48AddressValue (Mac48Address::Allocate ()));
+  device->SetAttribute("Address", Mac48AddressValue(macClient.c_str()));
 
   //Ptr<Queue> queue = CreateObject<DropTailQueue> ();
   //device->SetQueue (queue);
@@ -188,7 +189,7 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  Ipv4Address gateway ("10.100.12.1");
+  Ipv4Address gateway ("192.168.43.15");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
