@@ -23,7 +23,7 @@
 #include <rte_malloc.h>
 #include <rte_cycles.h>
 
-#define MAX_PKT_BURST 64 //define the maximum packet burst size
+#define MAX_PKT_BURST 32 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
@@ -76,11 +76,11 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 
   if (m_device)
     {
-      // clock_t begin = clock();
+      clock_t begin = clock();
       len = m_device->Read (buf);
-      // clock_t end = clock();
-      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
+      clock_t end = clock();
+      double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
@@ -587,8 +587,12 @@ DpdkNetDevice::Write (uint8_t *buffer, size_t length)
   pkt->data_len = length;
   pkt->pkt_len = length;
 
+  clock_t begin = clock();
   char* pktData = rte_pktmbuf_mtod_offset (pkt, char*, 0);
   memcpy (pktData, buffer, length);
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("Write::memcpy %f\n", time_spent * 1000000.0);
 
   // if (rte_ring_enqueue (m_txRing, pkt))
   //   {
@@ -596,14 +600,23 @@ DpdkNetDevice::Write (uint8_t *buffer, size_t length)
   //     return -1;
   //   }
   int queueId = 0;
-  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
 
+  begin = clock();
+  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
+  end = clock();
+  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
+
+  begin = clock();
   clock_t now = clock();
   double timeSinceLastTx = ((double)(now - m_lastTx) / CLOCKS_PER_SEC) * 1000000.0;
   if (timeSinceLastTx > 400.0) {
     rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
   }
   m_lastTx = now;
+  end = clock();
+  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("Write::tx_flush %f\n", time_spent * 1000000.0);
 
   return length;
 }
