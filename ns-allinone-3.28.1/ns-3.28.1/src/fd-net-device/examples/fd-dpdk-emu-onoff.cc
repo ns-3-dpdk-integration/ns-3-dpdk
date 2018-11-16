@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
 
         ApplicationContainer clientApps = onoff.Install(node);
         clientApps.Start(Seconds(6.0));
-        clientApps.Stop(Seconds(11.0));
+        clientApps.Stop(Seconds(26.0));
 
         if (ping)
         {
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
         emu.EnablePcap("fd-client", device);
     }
 
-    Simulator::Stop(Seconds(12));
+    Simulator::Stop(Seconds(30));
 
     Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
     Simulator::Run();

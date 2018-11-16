@@ -23,7 +23,7 @@
 #include <rte_malloc.h>
 #include <rte_cycles.h>
 
-#define MAX_PKT_BURST 32 //define the maximum packet burst size
+#define MAX_PKT_BURST 64 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
@@ -70,7 +70,7 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
   // NS_LOG_FUNCTION (this); because this is called infinitely
 
   uint8_t* buf = NULL;
-  size_t len = 0;
+  size_t len = -1;
 
   if (m_device)
     {
@@ -645,7 +645,7 @@ DpdkNetDevice::Read ()
     int queueId = 0;
     m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
     if (m_rxBuffer->length == 0) {
-      return std::make_pair((uint8_t*)NULL, 0);
+      return std::make_pair((uint8_t*)NULL, -1);
     }
   }
 
