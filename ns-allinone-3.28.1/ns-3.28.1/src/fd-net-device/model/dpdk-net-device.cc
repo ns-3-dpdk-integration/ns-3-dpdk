@@ -55,7 +55,7 @@ DpdkNetDeviceReader::SetBufferSize (uint32_t bufferSize)
 }
 
 void
-DpdkNetDeviceReader::SetFdNetDevice (Ptr<FdNetDevice> device)
+DpdkNetDeviceReader::SetFdNetDevice (Ptr<DpdkNetDevice> device)
 {
   NS_LOG_FUNCTION (this << device);
 
@@ -69,25 +69,25 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
 {
   // NS_LOG_FUNCTION (this); because this is called infinitely
 
-  uint8_t *buf = (uint8_t *)malloc (m_bufferSize);
-  NS_ABORT_MSG_IF (buf == 0, "malloc() failed");
-
-  ssize_t len = 0;
+  uint8_t* buf = NULL;
+  size_t len = 0;
 
   if (m_device)
     {
-      clock_t begin = clock();
-      len = m_device->Read (buf);
-      clock_t end = clock();
-      double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
+      // clock_t begin = clock();
+      std::pair<uint8_t*, size_t> pktData = m_device->Read ();
+      buf = pktData.first;
+      len = pktData.second;
+      // clock_t end = clock();
+      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
     {
-      free (buf);
-      buf = 0;
+      m_device->FreeBuffer (buf);
     }
+
   return DpdkNetDeviceReader::Data (buf, len);
 }
 
@@ -157,7 +157,8 @@ DpdkNetDevice::DpdkNetDevice ()
   m_mempool = NULL;
   m_lastTx = 0;
   m_rxBufferHead = 0;
-  SetFileDescriptor (1);
+  m_bufPktMap = std::unordered_map<uint8_t*, struct rte_mbuf*>();
+  SetFileDescriptor(1);
 }
 
 void
@@ -384,7 +385,6 @@ DpdkNetDevice::IsLinkUp (void) const
   return false;
 }
 
-
 void
 DpdkNetDevice::InitDpdk (int argc, char** argv)
 {
@@ -571,99 +571,97 @@ DpdkNetDevice::SetRteRingSize (int ringSize)
   m_ringSize = ringSize;
 }
 
+uint8_t*
+DpdkNetDevice::AllocateBuffer (size_t len)
+{
+  struct rte_mbuf *pkt = rte_pktmbuf_alloc(m_mempool);
+  if (!pkt)
+  {
+    return NULL;
+  }
+  uint8_t *buf = rte_pktmbuf_mtod_offset(pkt, uint8_t *, 0);
+  m_bufPktMap[buf] = pkt;
+  return buf;
+}
+
+void
+DpdkNetDevice::FreeBuffer (uint8_t* buf)
+{
+  if (m_bufPktMap.find(buf) == m_bufPktMap.end())
+  {
+    return;
+  }
+  struct rte_mbuf* pkt = m_bufPktMap[buf];
+  rte_pktmbuf_free(pkt);
+  m_bufPktMap.erase(buf);
+}
 
 ssize_t
-DpdkNetDevice::Write (uint8_t *buffer, size_t length)
+DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf *pkt;
 
-  pkt = rte_pktmbuf_alloc (m_mempool);
+  pkt = m_bufPktMap[buffer];
   if (!pkt)
     {
       NS_LOG_ERROR ("Cannot allocate packet in mempool");
       return -1;
     }
 
-  pkt->data_len = length;
   pkt->pkt_len = length;
+  pkt->data_len = length;
 
-  clock_t begin = clock();
-  char* pktData = rte_pktmbuf_mtod_offset (pkt, char*, 0);
-  memcpy (pktData, buffer, length);
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Write::memcpy %f\n", time_spent * 1000000.0);
-
-  // if (rte_ring_enqueue (m_txRing, pkt))
-  //   {
-  //     NS_LOG_ERROR ("Unable to enqueue in Tx rte_ring");
-  //     return -1;
-  //   }
   int queueId = 0;
 
-  begin = clock();
+  // begin = clock();
   rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
-  end = clock();
-  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
+  // end = clock();
+  // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  // printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
 
-  begin = clock();
+  // begin = clock();
   clock_t now = clock();
   double timeSinceLastTx = ((double)(now - m_lastTx) / CLOCKS_PER_SEC) * 1000000.0;
   if (timeSinceLastTx > 400.0) {
     rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
   }
   m_lastTx = now;
-  end = clock();
-  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Write::tx_flush %f\n", time_spent * 1000000.0);
+  // end = clock();
+  // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  // printf("Write::tx_flush %f\n", time_spent * 1000000.0);
 
   return length;
 }
 
 
-ssize_t
-DpdkNetDevice::Read (uint8_t *buffer)
+std::pair<uint8_t*, size_t>
+DpdkNetDevice::Read ()
 {
-  // void *item;
-  struct rte_mbuf *pkt;
-  uint8_t *dataBuffer = NULL;
-  int length;
+  struct rte_mbuf *pkt = NULL;
 
-  // if (rte_ring_dequeue (m_rxRing, &item) != 0)
-  //   {
-  //     // No object dequeued from Rx rte_ring
-  //     return -1;
-  //   }
   if (m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length)
   {
-    // for (int i=0; i<MAX_PKT_BURST; i++)
-    //   m_rxBuffer->pkts[i] = NULL;
     m_rxBufferHead = 0;
     int queueId = 0;
     m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
     if (m_rxBuffer->length == 0) {
-      return -1;
+      return std::make_pair((uint8_t*)NULL, 0);
     }
   }
 
-  // pkt = (struct rte_mbuf*) item;
   pkt = m_rxBuffer->pkts[m_rxBufferHead++];
 
-  // dataBuffer = new uint8_t[pkt->pkt_len];
-  dataBuffer = (uint8_t *) rte_pktmbuf_read (pkt, 0, pkt->pkt_len, dataBuffer);
+  uint8_t* buf = NULL;
+  buf = (uint8_t *) rte_pktmbuf_read (pkt, 0, pkt->pkt_len, buf);
 
-  if (dataBuffer == NULL)
+  if (buf == NULL)
     {
       NS_LOG_ERROR ("mbuf too small to read packets");
     }
 
-  memcpy (buffer, dataBuffer, pkt->pkt_len);
+  m_bufPktMap[buf] = pkt;
 
-  length = pkt->pkt_len;
-  rte_pktmbuf_free (pkt);
-
-  return length;
+  return std::make_pair(buf, pkt->pkt_len);
 }
 
 } // namespace ns3

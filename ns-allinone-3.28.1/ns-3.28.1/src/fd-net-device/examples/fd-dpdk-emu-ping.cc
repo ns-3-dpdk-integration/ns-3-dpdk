@@ -36,10 +36,10 @@ main (int argc, char *argv[])
 {
   NS_LOG_INFO ("Dpdk Emulation Ping Example");
 
-  std::string deviceName ("0000:00:1f.6");
+  std::string deviceName ("0000:00:11.0");
   std::string macClient("08:00:27:b8:57:37");
   // ping a real host connected back-to-back through the ethernet interfaces
-  std::string remote ("192.168.43.15");
+  std::string remote ("192.168.43.20");
 
   double samplingPeriod = 0.5; // s
   bool bql = false;
@@ -52,7 +52,7 @@ main (int argc, char *argv[])
 
   Ipv4Address remoteIp (remote.c_str ());
   // the OS IP for the eth0 interfaces is 10.0.1.1, and we set the ns-3 IP for eth0 to 10.0.1.11
-  Ipv4Address localIp ("192.168.43.43");
+  Ipv4Address localIp ("192.168.43.44");
   NS_ABORT_MSG_IF (localIp == "1.2.3.4", "You must change the local IP address before running this example");
 
   Ipv4Mask localMask ("255.255.255.0");
@@ -154,7 +154,7 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  Ipv4Address gateway ("192.168.43.15");
+  Ipv4Address gateway ("192.168.43.20");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;

@@ -230,6 +230,16 @@ protected:
   virtual void StopDevice (void);
 
   /**
+   * Allocate packet buffer.
+   */
+  virtual uint8_t* AllocateBuffer(size_t len);
+
+  /**
+   * Free the given packet buffer.
+   */
+  virtual void FreeBuffer (uint8_t* buf);
+
+  /**
    * Notify that the link is up and ready
    */
   void NotifyLinkUp (void);

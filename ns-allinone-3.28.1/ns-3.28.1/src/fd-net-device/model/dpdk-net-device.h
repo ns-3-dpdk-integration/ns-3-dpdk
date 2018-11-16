@@ -10,12 +10,16 @@
 #include <rte_ring.h>
 #include <rte_mempool.h>
 
+#include <unordered_map>
+
 struct rte_eth_dev_tx_buffer;
+struct rte_mbuf;
 
 namespace ns3
 {
 
   class Node;
+  class DpdkNetDevice;
 
   /**
  * \ingroup fd-net-device
@@ -34,7 +38,7 @@ namespace ns3
     /**
    * Set the device.
    */
-    void SetFdNetDevice(Ptr<FdNetDevice> device);
+    void SetFdNetDevice(Ptr<DpdkNetDevice> device);
 
     /**
    * The asynchronous function which performs read operation from DpdkNetDevice.
@@ -85,7 +89,7 @@ namespace ns3
   private:
     DpdkNetDeviceReader::Data DoRead(void);
 
-    Ptr<FdNetDevice> m_device;
+    Ptr<DpdkNetDevice> m_device;
 
     /** Signal the read thread to stop. */
     bool m_stop;
@@ -180,11 +184,21 @@ namespace ns3
     void StartSimulation(void);
     void _StartSimulation(void);
 
+    virtual void FreeBuffer (uint8_t* buf);
+    virtual uint8_t* AllocateBuffer(size_t len);
+
+    /**
+   * Read packet data from device.
+   * \param buffer Buffer the data to be read to.
+   * \return The size of data read.
+   */
+    std::pair<uint8_t *, size_t> Read();
+
   protected:
     /**
    * Spin up the device
    */
-    void StartDevice(void);
+        void StartDevice(void);
 
     /**
    * Tear down the device
@@ -200,13 +214,6 @@ namespace ns3
     ssize_t Write(uint8_t *buffer, size_t length);
 
     /**
-   * Read packet data from device.
-   * \param buffer Buffer the data to be read to.
-   * \return The size of data read.
-   */
-    ssize_t Read(uint8_t *buffer);
-
-    /**
    * The port number of the device to be used.
    */
     uint16_t m_portId;
@@ -217,7 +224,7 @@ namespace ns3
     std::string m_deviceName;
 
   private:
-    /**
+  /**
    * Reader for the file descriptor.
    */
     Ptr<DpdkNetDeviceReader> m_reader;
@@ -231,6 +238,7 @@ namespace ns3
     struct rte_eth_dev_tx_buffer *m_rxBuffer;
     int m_rxBufferHead;
     clock_t m_lastTx;
+    std::unordered_map<uint8_t*, struct rte_mbuf*> m_bufPktMap;
   };
 
 } //

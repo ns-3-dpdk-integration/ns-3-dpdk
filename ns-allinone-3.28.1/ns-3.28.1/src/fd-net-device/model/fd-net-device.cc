@@ -70,11 +70,11 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
 
   if (m_device)
     {
-      clock_t begin = clock();
+      // clock_t begin = clock();
       len = m_device->Read(buf);
-      clock_t end = clock();
-      double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
+      // clock_t end = clock();
+      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
@@ -406,6 +406,18 @@ RemovePIHeader (uint8_t *&buf, ssize_t &len)
     }
 }
 
+uint8_t *
+FdNetDevice::AllocateBuffer(size_t len)
+{
+  return (uint8_t*) malloc(len);
+}
+
+void
+FdNetDevice::FreeBuffer (uint8_t *buf)
+{
+  free (buf);
+}
+
 void
 FdNetDevice::ForwardUp (void)
 {
@@ -434,7 +446,7 @@ FdNetDevice::ForwardUp (void)
   // Create a packet out of the buffer we received and free that buffer.
   //
   Ptr<Packet> packet = Create<Packet> (reinterpret_cast<const uint8_t *> (buf), len);
-  free (buf);
+  FreeBuffer (buf);
   buf = 0;
 
   //
@@ -603,7 +615,13 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
 
 
   size_t len =  (size_t) packet->GetSize ();
-  uint8_t *buffer = (uint8_t*)malloc (len);
+  uint8_t *buffer = AllocateBuffer (len);
+  if(!buffer)
+  {
+    m_macTxDropTrace(packet);
+    return false;
+  }
+
   packet->CopyData (buffer, len);
 
   // We need to add the PI header
@@ -611,12 +629,12 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
     {
       AddPIHeader (buffer, len);
     }
-  clock_t begin = clock();
+  // clock_t begin = clock();
   ssize_t written = Write(buffer, len);
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("FdNetDevice::Write %f\n", time_spent * 1000000.0);
-  free(buffer);
+  // clock_t end = clock();
+  // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  // printf("FdNetDevice::Write %f\n", time_spent * 1000000.0);
+  FreeBuffer (buffer);
 
   if (written == -1 || (size_t)written != len)
     {

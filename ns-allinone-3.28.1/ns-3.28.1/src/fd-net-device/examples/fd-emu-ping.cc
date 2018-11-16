@@ -92,7 +92,7 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Ping Emulation Example");
 
   std::string deviceName ("enp0s17");
-  std::string remote ("192.168.43.15"); // example.com
+  std::string remote ("192.168.43.20"); // example.com
   std::string macClient("08:00:27:b8:57:37");
 
   //
@@ -105,7 +105,7 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
 
   Ipv4Address remoteIp (remote.c_str ());
-  Ipv4Address localIp ("192.168.43.43");
+  Ipv4Address localIp ("192.168.43.44");
   NS_ABORT_MSG_IF (localIp == "1.2.3.4", "You must change the local IP address before running this example");
 
   Ipv4Mask localMask ("255.255.255.0");
@@ -189,7 +189,7 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  Ipv4Address gateway ("192.168.43.15");
+  Ipv4Address gateway ("192.168.43.20");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
