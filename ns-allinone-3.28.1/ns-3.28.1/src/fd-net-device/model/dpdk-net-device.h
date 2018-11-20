@@ -237,8 +237,7 @@ namespace ns3
     struct rte_eth_dev_tx_buffer *m_txBuffer;
     struct rte_eth_dev_tx_buffer *m_rxBuffer;
     int m_rxBufferHead;
-    clock_t m_lastTx;
-    std::unordered_map<uint8_t*, struct rte_mbuf*> m_bufPktMap;
+    uint64_t m_nextTxTsc;
   };
 
 } //

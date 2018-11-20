@@ -22,6 +22,7 @@
 #include <rte_mbuf.h>
 #include <rte_malloc.h>
 #include <rte_cycles.h>
+#include <rte_port.h>
 
 #define MAX_PKT_BURST 64 //define the maximum packet burst size
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
@@ -32,6 +33,8 @@
 
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
+
+#define TX_TIMEOUT (rte_get_timer_hz() / 16)
 
 namespace ns3 {
 
@@ -155,9 +158,8 @@ DpdkNetDevice::DpdkNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
-  m_lastTx = 0;
+  m_nextTxTsc = rte_rdtsc() + TX_TIMEOUT;
   m_rxBufferHead = 0;
-  m_bufPktMap = std::unordered_map<uint8_t*, struct rte_mbuf*>();
   SetFileDescriptor(1);
 }
 
@@ -579,21 +581,20 @@ DpdkNetDevice::AllocateBuffer (size_t len)
   {
     return NULL;
   }
-  uint8_t *buf = rte_pktmbuf_mtod_offset(pkt, uint8_t *, 0);
-  m_bufPktMap[buf] = pkt;
+  uint8_t *buf = rte_pktmbuf_mtod(pkt, uint8_t *);
   return buf;
 }
 
 void
 DpdkNetDevice::FreeBuffer (uint8_t* buf)
 {
-  if (m_bufPktMap.find(buf) == m_bufPktMap.end())
-  {
+  struct rte_mbuf *pkt;
+
+  if (!buf)
     return;
-  }
-  struct rte_mbuf* pkt = m_bufPktMap[buf];
+  pkt = (struct rte_mbuf *)RTE_PTR_SUB(buf, sizeof(rte_mbuf) + RTE_PKTMBUF_HEADROOM);
+
   rte_pktmbuf_free(pkt);
-  m_bufPktMap.erase(buf);
 }
 
 ssize_t
@@ -601,12 +602,12 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf *pkt;
 
-  pkt = m_bufPktMap[buffer];
-  if (!pkt)
-    {
-      NS_LOG_ERROR ("Cannot allocate packet in mempool");
-      return -1;
-    }
+  if (buffer == NULL) {
+    return -1;
+  }
+
+  pkt = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
+                                sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM);
 
   pkt->pkt_len = length;
   pkt->data_len = length;
@@ -619,16 +620,13 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
   // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   // printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
 
-  // begin = clock();
-  clock_t now = clock();
-  double timeSinceLastTx = ((double)(now - m_lastTx) / CLOCKS_PER_SEC) * 1000000.0;
-  if (timeSinceLastTx > 400.0) {
+  uint64_t cur_tsc = rte_rdtsc();
+
+  if (cur_tsc >= m_nextTxTsc)
+  {
     rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+    m_nextTxTsc = cur_tsc + TX_TIMEOUT; 
   }
-  m_lastTx = now;
-  // end = clock();
-  // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  // printf("Write::tx_flush %f\n", time_spent * 1000000.0);
 
   return length;
 }
@@ -652,14 +650,7 @@ DpdkNetDevice::Read ()
   pkt = m_rxBuffer->pkts[m_rxBufferHead++];
 
   uint8_t* buf = NULL;
-  buf = (uint8_t *) rte_pktmbuf_read (pkt, 0, pkt->pkt_len, buf);
-
-  if (buf == NULL)
-    {
-      NS_LOG_ERROR ("mbuf too small to read packets");
-    }
-
-  m_bufPktMap[buf] = pkt;
+  buf = rte_pktmbuf_mtod(pkt, uint8_t *);
 
   return std::make_pair(buf, pkt->pkt_len);
 }

@@ -39,7 +39,7 @@ main (int argc, char *argv[])
   std::string deviceName ("0000:00:11.0");
   std::string macClient("78:0c:b8:d8:e1:95");
   // ping a real host connected back-to-back through the ethernet interfaces
-  std::string remote ("192.168.43.96");
+  std::string remote ("192.168.43.137");
 
   double samplingPeriod = 0.5; // s
   bool bql = false;
@@ -154,7 +154,7 @@ main (int argc, char *argv[])
   // the default gateway on your host and add it below, replacing the
   // "1.2.3.4" string.
   //
-  Ipv4Address gateway ("192.168.43.96");
+  Ipv4Address gateway ("192.168.43.137");
   NS_ABORT_MSG_IF (gateway == "1.2.3.4", "You must change the gateway IP address before running this example");
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;

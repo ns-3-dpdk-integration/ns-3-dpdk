@@ -4,7 +4,7 @@
     --server=192.168.43.142 \
     --mac-server=20:39:56:6c:47:1b \
     --data-rate=10Mb/s \
-    --transportPort=T=Ucp \
+    --transportPort=Tcp \
     --dpdkMode=true'
 
 # ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \
