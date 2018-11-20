@@ -34,7 +34,7 @@
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
 
-#define TX_TIMEOUT (rte_get_timer_hz() / 16)
+#define TX_TIMEOUT (rte_get_timer_hz() / 2048)
 
 namespace ns3 {
 
