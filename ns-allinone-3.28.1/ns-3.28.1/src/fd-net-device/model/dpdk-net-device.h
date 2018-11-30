@@ -9,6 +9,7 @@
 
 #include <rte_ring.h>
 #include <rte_mempool.h>
+#include <rte_cycles.h>
 
 #include <unordered_map>
 
@@ -238,6 +239,7 @@ namespace ns3
     struct rte_eth_dev_tx_buffer *m_rxBuffer;
     int m_rxBufferHead;
     uint64_t m_nextTxTsc;
+    uint64_t m_txTimeout;
   };
 
 } //

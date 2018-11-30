@@ -34,8 +34,6 @@
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
 
-#define TX_TIMEOUT (rte_get_timer_hz() / 2048)
-
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DpdkNetDevice");
@@ -158,7 +156,8 @@ DpdkNetDevice::DpdkNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
-  m_nextTxTsc = rte_rdtsc() + TX_TIMEOUT;
+  m_txTimeout = rte_get_timer_hz() / 2048;
+  m_nextTxTsc = rte_rdtsc() + m_txTimeout;
   m_rxBufferHead = 0;
   SetFileDescriptor(1);
 }
@@ -622,10 +621,12 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 
   uint64_t cur_tsc = rte_rdtsc();
 
+  m_txTimeout = rte_get_timer_hz() / 2048;
+  
   if (cur_tsc >= m_nextTxTsc)
   {
     rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
-    m_nextTxTsc = cur_tsc + TX_TIMEOUT; 
+    m_nextTxTsc = cur_tsc + m_txTimeout; 
   }
 
   return length;
