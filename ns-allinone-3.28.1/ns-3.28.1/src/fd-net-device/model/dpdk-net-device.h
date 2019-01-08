@@ -193,7 +193,8 @@ namespace ns3
    * \param buffer Buffer the data to be read to.
    * \return The size of data read.
    */
-    std::pair<uint8_t *, size_t> Read();
+    struct rte_mbuf* Read();
+    // std::pair<uint8_t *, size_t> Read();
 
   protected:
     /**

@@ -27,6 +27,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <unistd.h>
 
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -227,7 +228,9 @@ int main(int argc, char *argv[])
 
     Simulator::Stop(Seconds(30));
 
-    Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
+    // Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
+    printf("Press Enter to continue (pid: %d)\n", getpid());
+    getchar();
     Simulator::Run();
     Simulator::Destroy();
     // dpdkNetDevice->StartSimulation();

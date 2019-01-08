@@ -76,9 +76,14 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
   if (m_device)
     {
       // clock_t begin = clock();
-      std::pair<uint8_t*, size_t> pktData = m_device->Read ();
-      buf = pktData.first;
-      len = pktData.second;
+      // std::pair<uint8_t*, size_t> pktData = m_device->Read ();
+      // buf = pktData.first;
+      // len = pktData.second;
+      struct rte_mbuf* pkt = m_device->Read ();
+      if (pkt) {
+        buf = rte_pktmbuf_mtod(pkt, uint8_t *);
+        len = pkt->pkt_len;
+      }
       // clock_t end = clock();
       // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
       // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
@@ -376,14 +381,7 @@ DpdkNetDevice::LaunchCore (void *arg)
 bool
 DpdkNetDevice::IsLinkUp (void) const
 {
-  struct rte_eth_link link;
-  memset (&link, 0, sizeof(link));
-  rte_eth_link_get (m_portId, &link);
-  if (link.link_status)
-    {
-      return true;
-    }
-  return false;
+  return true;
 }
 
 void
@@ -633,7 +631,7 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 }
 
 
-std::pair<uint8_t*, size_t>
+struct rte_mbuf*
 DpdkNetDevice::Read ()
 {
   struct rte_mbuf *pkt = NULL;
@@ -644,16 +642,17 @@ DpdkNetDevice::Read ()
     int queueId = 0;
     m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
     if (m_rxBuffer->length == 0) {
-      return std::make_pair((uint8_t*)NULL, -1);
+      return NULL;
     }
   }
 
   pkt = m_rxBuffer->pkts[m_rxBufferHead++];
+  return pkt;
 
-  uint8_t* buf = NULL;
-  buf = rte_pktmbuf_mtod(pkt, uint8_t *);
+  // uint8_t* buf = NULL;
+  // buf = rte_pktmbuf_mtod(pkt, uint8_t *);
 
-  return std::make_pair(buf, pkt->pkt_len);
+  // return std::make_pair(buf, pkt->pkt_len);
 }
 
 } // namespace ns3
