@@ -73,7 +73,7 @@ DpdkNetDeviceReader::Data DpdkNetDeviceReader::DoRead (void)
   uint8_t* buf = NULL;
   size_t len = -1;
 
-  if (m_device)
+  if (likely(m_device))
     {
       // clock_t begin = clock();
       // std::pair<uint8_t*, size_t> pktData = m_device->Read ();
@@ -102,17 +102,17 @@ DpdkNetDeviceReader::Run (void)
 {
   NS_LOG_FUNCTION (this);
 
-  while (!m_stop)
+  while (likely(!m_stop))
     {
       struct DpdkNetDeviceReader::Data data = DoRead ();
       // reading stops when m_len is zero
-      if (data.m_len == 0)
+      if (unlikely(data.m_len == 0))
         {
           break;
         }
       // the callback is only called when m_len is positive (data
       // is ignored if m_len is negative)
-      else if (data.m_len > 0)
+      else if (likely(data.m_len > 0))
         {
           m_readCallback (data.m_buf, data.m_len);
         }
@@ -161,10 +161,17 @@ DpdkNetDevice::DpdkNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
-  m_txTimeout = rte_get_timer_hz() / 2048;
+  m_txTimeout = rte_get_timer_hz() / 16;
   m_nextTxTsc = rte_rdtsc() + m_txTimeout;
   m_rxBufferHead = 0;
   SetFileDescriptor(1);
+}
+
+void
+DpdkNetDevice::SetTimeoutFactor (int factor)
+{
+  printf("Setting DPDK timeout = 1s / %d\n", factor);
+  m_txTimeout = rte_get_timer_hz() / factor;
 }
 
 void
@@ -515,13 +522,14 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
   m_rxBuffer = (rte_eth_dev_tx_buffer*) rte_zmalloc_socket ("rx_buffer",
                                     RTE_ETH_TX_BUFFER_SIZE (MAX_PKT_BURST), 0,
                                     rte_eth_dev_socket_id (m_portId));
-  if (m_txBuffer == NULL)
+  if (m_txBuffer == NULL || m_rxBuffer == NULL)
     {
-      rte_exit (EXIT_FAILURE, "Cannot allocate buffer for tx on port %u\n",
+      rte_exit (EXIT_FAILURE, "Cannot allocate buffer for rx/tx on port %u\n",
                 m_portId);
     }
 
   rte_eth_tx_buffer_init (m_txBuffer, MAX_PKT_BURST);
+  rte_eth_tx_buffer_init (m_rxBuffer, MAX_PKT_BURST);
 
   NS_LOG_INFO ("Start the device");
   ret = rte_eth_dev_start (m_portId);
@@ -598,9 +606,18 @@ ssize_t
 DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf *pkt;
+  int queueId = 0;
 
   if (buffer == NULL) {
     return -1;
+  }
+
+  uint64_t cur_tsc = rte_rdtsc();
+
+  if (unlikely(cur_tsc >= m_nextTxTsc))
+  {
+    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+    m_nextTxTsc = cur_tsc + m_txTimeout;
   }
 
   pkt = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
@@ -608,24 +625,11 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 
   pkt->pkt_len = length;
   pkt->data_len = length;
-
-  int queueId = 0;
-
   // begin = clock();
   rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
   // end = clock();
   // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   // printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
-
-  uint64_t cur_tsc = rte_rdtsc();
-
-  m_txTimeout = rte_get_timer_hz() / 2048;
-  
-  if (cur_tsc >= m_nextTxTsc)
-  {
-    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
-    m_nextTxTsc = cur_tsc + m_txTimeout; 
-  }
 
   return length;
 }
@@ -636,7 +640,7 @@ DpdkNetDevice::Read ()
 {
   struct rte_mbuf *pkt = NULL;
 
-  if (m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length)
+  if (unlikely(m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length))
   {
     m_rxBufferHead = 0;
     int queueId = 0;

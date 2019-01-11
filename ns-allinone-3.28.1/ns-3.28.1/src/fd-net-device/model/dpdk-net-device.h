@@ -161,6 +161,9 @@ namespace ns3
    */
     void SetRteRingSize(int ringSize);
 
+
+  void SetTimeoutFactor(int factor);
+
     /**
    * A function to handle rx & tx operations.
    */

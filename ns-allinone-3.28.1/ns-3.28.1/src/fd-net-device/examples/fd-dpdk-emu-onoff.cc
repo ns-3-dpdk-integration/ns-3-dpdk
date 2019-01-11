@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
 
     bool dpdkMode = true;
     bool ping = false;
+    int dpdkTimeoutFactor = 128;
 
     double samplingPeriod = 0.5; // s
 
@@ -94,6 +95,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("data-rate", "Data rate defaults to 1000Mb/s", dataRate);
     cmd.AddValue("transportPort", "Transport protocol to use: Tcp, Udp", transportProt);
     cmd.AddValue("dpdkMode", "Enable the netmap emulation mode", dpdkMode);
+    cmd.AddValue("dpdkTimeoutFactor", "Timeout factor to use in dpdkMode. timeout = 1s / k, k = Timeout factor", dpdkTimeoutFactor);
     cmd.AddValue("ping", "Enable server ping client side", ping);
     cmd.Parse(argc, argv);
 
@@ -162,6 +164,12 @@ int main(int argc, char *argv[])
     Ptr<NetDevice> device = devices.Get(0);
     device->SetAttribute("Address", localMac);
 
+    if (dpdkMode)
+    {
+        Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
+        dpdkNetDevice->SetTimeoutFactor(dpdkTimeoutFactor);
+    }
+
     NS_LOG_INFO("Add Internet Stack");
     InternetStackHelper internetStackHelper;
     internetStackHelper.SetIpv4StackInstall(true);
@@ -228,12 +236,10 @@ int main(int argc, char *argv[])
 
     Simulator::Stop(Seconds(30));
 
-    // Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
-    printf("Press Enter to continue (pid: %d)\n", getpid());
-    getchar();
+    // printf("Press Enter to continue (pid: %d)\n", getpid());
+    // getchar();
     Simulator::Run();
     Simulator::Destroy();
-    // dpdkNetDevice->StartSimulation();
 
     return 0;
 }
