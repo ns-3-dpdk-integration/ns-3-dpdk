@@ -125,8 +125,8 @@ DpdkNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
   NS_LOG_FUNCTION (this);
 
   m_readCallback = readCallback;
-  m_readThread = Create<SystemThread> (MakeCallback (&DpdkNetDeviceReader::Run, this));
-  m_readThread->Start ();
+  // m_readThread = Create<SystemThread> (MakeCallback (&DpdkNetDeviceReader::Run, this));
+  // m_readThread->Start ();
 }
 
 void
@@ -327,16 +327,25 @@ DpdkNetDevice::HandleTx ()
 void
 DpdkNetDevice::HandleRx ()
 {
-  int queueId = 0;
-  struct rte_mbuf* rxBuffer[MAX_RX_BURST];
-  int nbRxNic;
-
-  nbRxNic = rte_eth_rx_burst (m_portId, queueId, rxBuffer, MAX_RX_BURST);
-
-  if (nbRxNic != 0)
+  if (unlikely(m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length))
+  {
+    m_rxBufferHead = 0;
+    int queueId = 0;
+    m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
+    
+    for(uint8_t i=0;i<m_rxBuffer->length;i++)
     {
-      rte_ring_enqueue_burst (m_rxRing, (void **) rxBuffer, nbRxNic, NULL);
+      struct rte_mbuf *pkt = NULL;
+      pkt = m_rxBuffer->pkts[m_rxBufferHead++];
+
+      if(pkt)
+      {
+        uint8_t * buf = rte_pktmbuf_mtod(pkt, uint8_t *);
+        size_t length = pkt->pkt_len;
+        FdNetDevice::ReceiveCallback(buf,length);
+      }
     }
+  }
 }
 
 void DpdkNetDevice::_StartSimulation(void)
@@ -358,29 +367,18 @@ DpdkNetDevice::LaunchCore (void *arg)
   lcoreId = rte_lcore_id ();
   if (lcoreId != 1)
     {
-      dpdkNetDevice->_StartSimulation();
       return 0;
     }
 
-  // while (!m_forceQuit)
-    // {
+  while (!m_forceQuit)
+    {
 
-      // clock_t begin = clock();
-      // // dpdkNetDevice->HandleTx ();
-      // clock_t end = clock();
-      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      // // printf("DpdkNetDevice::HandleTx %f\n", time_spent * 1000000.0);
-
-      // begin = clock();
-      // // dpdkNetDevice->HandleRx ();
-      // end = clock();
-      // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      // // printf("DpdkNetDevice::HandleRx %f\n", time_spent * 1000000.0);
+      dpdkNetDevice->HandleRx ();
 
       // we use a period to check and notify of 200 us; it is a value close to
       // the interrupt coalescence period of a real device
       // usleep (2);
-    // }
+    }
 
   return 0;
 }
@@ -568,6 +566,7 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
     }
 
   NS_LOG_INFO ("Launching core threads");
+  rte_eal_mp_remote_launch (LaunchCore, this, CALL_MASTER);
 }
 
 void
@@ -612,13 +611,8 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
     return -1;
   }
 
-  uint64_t cur_tsc = rte_rdtsc();
+  // uint64_t cur_tsc = rte_rdtsc();
 
-  if (unlikely(cur_tsc >= m_nextTxTsc))
-  {
-    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
-    m_nextTxTsc = cur_tsc + m_txTimeout;
-  }
 
   pkt = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
                                 sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM);
@@ -631,6 +625,13 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
   // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   // printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
 
+  // if (unlikely(cur_tsc >= m_nextTxTsc))
+  // {
+    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  //   m_nextTxTsc = cur_tsc + m_txTimeout;
+  // }
+  
+
   return length;
 }
 
@@ -642,12 +643,7 @@ DpdkNetDevice::Read ()
 
   if (unlikely(m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length))
   {
-    m_rxBufferHead = 0;
-    int queueId = 0;
-    m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
-    if (m_rxBuffer->length == 0) {
-      return NULL;
-    }
+    return NULL;
   }
 
   pkt = m_rxBuffer->pkts[m_rxBufferHead++];

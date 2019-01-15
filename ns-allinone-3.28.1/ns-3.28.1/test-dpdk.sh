@@ -1,19 +1,19 @@
 ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \
-    --deviceName=0000:00:11.0 \
-    --client=192.168.43.44 \
-    --server=192.168.43.142 \
-    --mac-server=20:39:56:6c:47:1b \
-    --data-rate=20Mb/s \
+    --deviceName=0000:00:03.0 \
+    --client=192.168.43.62 \
+    --server=192.168.43.67 \
+    --mac-server=08:00:27:82:81:0a \
+    --data-rate=100Mb/s \
     --transportPort=Tcp \
     --dpdkTimeoutFactor=512 \
     --dpdkMode=true'
 
 # ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \
-#     --deviceName=enp0s17 \
-#     --client=192.168.43.44 \
-#     --server=192.168.43.142 \
-#     --mac-server=20:39:56:6c:47:1b \
-#     --data-rate=20Mb/s \
+#     --deviceName=enp0s3 \
+#     --client=192.168.43.62 \
+#     --server=192.168.43.67 \
+#     --mac-server=08:00:27:82:81:0a \
+#     --data-rate=100Mb/s \
 #     --transportPort=Tcp \
 #     --dpdkMode=false '
 
