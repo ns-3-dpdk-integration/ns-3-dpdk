@@ -164,6 +164,7 @@ DpdkNetDevice::DpdkNetDevice ()
   m_txTimeout = rte_get_timer_hz() / 16;
   m_nextTxTsc = rte_rdtsc() + m_txTimeout;
   m_rxBufferHead = 0;
+  m_lastRxPkt = NULL;
   SetFileDescriptor(1);
 }
 
@@ -327,25 +328,40 @@ DpdkNetDevice::HandleTx ()
 void
 DpdkNetDevice::HandleRx ()
 {
-  if (unlikely(m_rxBuffer->length == 0 || m_rxBufferHead == m_rxBuffer->length))
-  {
-    m_rxBufferHead = 0;
-    int queueId = 0;
-    m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
-    
-    for(uint8_t i=0;i<m_rxBuffer->length;i++)
-    {
-      struct rte_mbuf *pkt = NULL;
-      pkt = m_rxBuffer->pkts[m_rxBufferHead++];
+  int queueId = 0;
+  m_rxBuffer->length = rte_eth_rx_burst(m_portId, queueId, m_rxBuffer->pkts, MAX_PKT_BURST);
 
-      if(pkt)
+  for(uint16_t i = 0; i < m_rxBuffer->length; i++)
+  {
+    struct rte_mbuf *pkt = NULL;
+    pkt = m_rxBuffer->pkts[i];
+    bool skip = false;
+
+    for (uint16_t j = 0; j < i-1; j++)
+    {
+      if (pkt == m_rxBuffer->pkts[i])
       {
-        uint8_t * buf = rte_pktmbuf_mtod(pkt, uint8_t *);
-        size_t length = pkt->pkt_len;
-        FdNetDevice::ReceiveCallback(buf,length);
+        skip = true;
+        break;
       }
     }
+
+    if (!pkt || skip || pkt == m_lastRxPkt) {
+      // Duplicate packet, I don't know why, but we can ignore
+      continue;
+    }
+
+    m_lastRxPkt = pkt;
+    uint8_t * buf = rte_pktmbuf_mtod(pkt, uint8_t *);
+    size_t length = pkt->data_len;
+    FdNetDevice::ReceiveCallback(buf,length);
+    if (pkt->data_len != pkt->pkt_len) {
+      printf("Packet Len %d != Data Len %d\n", pkt->pkt_len, pkt->data_len);
+      fflush(stdout);
+    }
   }
+
+  m_rxBuffer->length = 0;
 }
 
 void DpdkNetDevice::_StartSimulation(void)
@@ -627,7 +643,10 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 
   // if (unlikely(cur_tsc >= m_nextTxTsc))
   // {
-    rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  int ret = rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  if (unlikely(ret < 1)) {
+    return -1;
+  }
   //   m_nextTxTsc = cur_tsc + m_txTimeout;
   // }
   

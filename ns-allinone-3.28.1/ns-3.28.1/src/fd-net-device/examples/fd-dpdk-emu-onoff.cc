@@ -131,6 +131,8 @@ int main(int argc, char *argv[])
 
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
+    Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(false));
+
     NS_LOG_INFO("Create Node");
     Ptr<Node> node = CreateObject<Node>();
 

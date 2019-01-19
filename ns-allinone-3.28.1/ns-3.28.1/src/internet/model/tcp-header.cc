@@ -359,6 +359,21 @@ TcpHeader::Serialize (Buffer::Iterator start)  const
 uint32_t
 TcpHeader::Deserialize (Buffer::Iterator start)
 {
+  // Do checksum
+  if (m_calcChecksum)
+  {
+    uint16_t headerChecksum = CalculateHeaderChecksum(start.GetSize());
+    Buffer::Iterator it = start;
+    uint16_t checksum = it.CalculateIpChecksum(start.GetSize(), headerChecksum);
+    m_goodChecksum = (checksum == 0);
+    if (!m_goodChecksum)
+    {
+      // Checksum not valid, further deserialize may lead to incorrect data.
+      NS_LOG_ERROR ("Checksum not valid.");
+      return 0;
+    }
+  }
+
   m_optionsLen = 0;
   Buffer::Iterator i = start;
   m_sourcePort = i.ReadNtohU16 ();
@@ -427,15 +442,6 @@ TcpHeader::Deserialize (Buffer::Iterator start)
   if (m_length != CalculateHeaderLength ())
     {
       NS_LOG_ERROR ("Mismatch between calculated length and in-header value");
-    }
-
-  // Do checksum
-  if (m_calcChecksum)
-    {
-      uint16_t headerChecksum = CalculateHeaderChecksum (start.GetSize ());
-      i = start;
-      uint16_t checksum = i.CalculateIpChecksum (start.GetSize (), headerChecksum);
-      m_goodChecksum = (checksum == 0);
     }
 
   return GetSerializedSize ();

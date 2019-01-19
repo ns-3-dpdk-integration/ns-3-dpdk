@@ -244,6 +244,7 @@ namespace ns3
     int m_rxBufferHead;
     uint64_t m_nextTxTsc;
     uint64_t m_txTimeout;
+    struct rte_mbuf* m_lastRxPkt;
   };
 
 } //
