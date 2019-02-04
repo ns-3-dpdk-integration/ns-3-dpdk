@@ -61,10 +61,38 @@ PingRtt(std::string context, Time rtt)
     NS_LOG_UNCOND("Received Response with RTT = " << rtt);
 }
 
+static void
+CwndChange (uint32_t old, uint32_t new_)
+{
+    std::ofstream fPlotCwnd = std::ofstream ("harsh-cwnd.plotme", std::ios::out | std::ios::app);
+    fPlotCwnd << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+    fPlotCwnd.close ();
+}
+
+static void
+SstChange (uint32_t old, uint32_t new_)
+{
+    std::ofstream fPlotSst = std::ofstream ("harsh-sst.plotme", std::ios::out | std::ios::app);
+    fPlotSst << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+    fPlotSst.close ();
+}
+
+// Trace Function for cwnd
+void
+TraceCwnd (uint32_t node, uint32_t cwndWindow,
+           Callback <void, uint32_t, uint32_t> CwndTrace,
+           Callback <void, uint32_t, uint32_t> SstTrace)
+{
+  Config::ConnectWithoutContext ("/NodeList/" + std::to_string (node) + "/$ns3::TcpL4Protocol/SocketList/" + std::to_string (cwndWindow) + "/CongestionWindow", CwndTrace);
+  Config::ConnectWithoutContext ("/NodeList/" + std::to_string (node) + "/$ns3::TcpL4Protocol/SocketList/" + std::to_string (cwndWindow) + "/SlowStartThreshold", SstTrace);
+}
+
 int main(int argc, char *argv[])
 {
     uint16_t sinkPort = 8000;
     uint32_t packetSize = 1400; // bytes
+    // uint64_t rcvBufSize = 1 << 30;
+    // uint64_t sndBufSize = 1 << 30;
     std::string dataRate("950Mb/s");
     bool serverMode = false;
 
@@ -131,7 +159,13 @@ int main(int argc, char *argv[])
 
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
+    // Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(rcvBufSize));
+    // Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(sndBufSize));
+
     Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(false));
+    // Setting min rto to linux default value
+    // Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue (MilliSeconds (200) ) );
+    // Config::SetDefault("ns3::TcpSocket::InitialSlowStartThreshold", UintegerValue(50000));   
 
     NS_LOG_INFO("Create Node");
     Ptr<Node> node = CreateObject<Node>();
@@ -139,7 +173,7 @@ int main(int argc, char *argv[])
     NS_LOG_INFO("Create Device");
     EmuFdNetDeviceHelper emu;
 
-    // set the dpdk emulation mode
+    // set the dpdk emulation mode 
     if (dpdkMode)
     {
         // set the dpdk emulation mode
@@ -176,6 +210,20 @@ int main(int argc, char *argv[])
     InternetStackHelper internetStackHelper;
     internetStackHelper.SetIpv4StackInstall(true);
     internetStackHelper.Install(node);
+
+    // std::string linkDataRate = "100Mbps";
+    // std::string linkDelay = "1ms";
+    // bool bql = true;
+
+    // Config::SetDefault ("ns3::PfifoFastQueueDisc::MaxSize",
+    //                     QueueSizeValue (QueueSize (QueueSizeUnit::PACKETS, 3000)));
+    // TrafficControlHelper tch;
+    // tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
+    // if(bql)
+    // {
+    //     tch.SetQueueLimits ("ns3::DynamicQueueLimits", "HoldTime", StringValue("20ms"));
+    // }
+    // QueueDiscContainer queueDiscs = tch.Install (device);
 
     // TODO: Add sampling code.
     // we enable the stats sampling client side only (we send traffic from client to server)
@@ -217,7 +265,7 @@ int main(int argc, char *argv[])
 
         ApplicationContainer clientApps = onoff.Install(node);
         clientApps.Start(Seconds(6.0));
-        clientApps.Stop(Seconds(26.0));
+        clientApps.Stop(Seconds(206.0));
 
         if (ping)
         {
@@ -236,10 +284,12 @@ int main(int argc, char *argv[])
         emu.EnablePcap("fd-client", device);
     }
 
-    Simulator::Stop(Seconds(30));
+    Simulator::Schedule ( Seconds (6.001), &TraceCwnd, 0, 0, MakeCallback (&CwndChange                            ), MakeCallback (&SstChange) );
 
-    // printf("Press Enter to continue (pid: %d)\n", getpid());
-    // getchar();
+    Simulator::Stop(Seconds(215));
+
+    printf("Press Enter to continue (pid: %d)\n", getpid());
+    getchar();
     Simulator::Run();
     Simulator::Destroy();
 

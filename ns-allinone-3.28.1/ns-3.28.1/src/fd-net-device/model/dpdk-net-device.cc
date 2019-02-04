@@ -101,21 +101,12 @@ void
 DpdkNetDeviceReader::Run (void)
 {
   NS_LOG_FUNCTION (this);
+  rte_eth_stats_reset(0);
 
   while (likely(!m_stop))
     {
-      struct DpdkNetDeviceReader::Data data = DoRead ();
-      // reading stops when m_len is zero
-      if (unlikely(data.m_len == 0))
-        {
-          break;
-        }
-      // the callback is only called when m_len is positive (data
-      // is ignored if m_len is negative)
-      else if (likely(data.m_len > 0))
-        {
-          m_readCallback (data.m_buf, data.m_len);
-        }
+      m_device->HandleTx();
+      // usleep(1000);
     }
 }
 
@@ -165,6 +156,7 @@ DpdkNetDevice::DpdkNetDevice ()
   m_nextTxTsc = rte_rdtsc() + m_txTimeout;
   m_rxBufferHead = 0;
   m_lastRxPkt = NULL;
+  m_queue = 0;
   SetFileDescriptor(1);
 }
 
@@ -196,11 +188,12 @@ DpdkNetDevice::StartDevice (void)
   m_nodeId = GetNode ()->GetId ();
 
   m_reader = Create<DpdkNetDeviceReader> ();
-  // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
+  // // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
   m_reader->SetFdNetDevice (this);
   m_reader->SetBufferSize (m_mtu + 22);
   m_reader->Start (MakeCallback (&FdNetDevice::ReceiveCallback, this));
 
+  rte_eth_stats_reset(m_portId);
   NotifyLinkUp ();
 }
 
@@ -214,6 +207,17 @@ DpdkNetDevice::StopDevice (void)
   m_forceQuit = true;
   rte_ring_free (m_txRing);
   rte_ring_free (m_rxRing);
+
+  // Print port stats
+  // struct rte_eth_stats stats;
+  // rte_eth_stats_get(m_portId, &stats);
+  // printf("----------------- Port Stats -----------------\n");
+  // printf("Rx pkts\t%ld\n", stats.ipackets);
+  // printf("Tx pkts\t%ld\n", stats.opackets);
+  // printf("Rx drop\t%ld\n", stats.imissed);
+  // printf("Rx error\t%ld\n", stats.ierrors);
+  // printf("Tx fail\t%ld\n", stats.oerrors);
+  // printf("-------------------- DONE --------------------\n");
 }
 
 void
@@ -296,33 +300,12 @@ DpdkNetDevice::SignalHandler (int signum)
 void
 DpdkNetDevice::HandleTx ()
 {
-  int queueId = 0, nbTx, ret;
-  void** txBuffer;
-
-  txBuffer = (void**) malloc (MAX_TX_BURST * sizeof(struct rte_mbuf*));
-  clock_t begin = clock();
-  nbTx = rte_ring_dequeue_burst (m_txRing, txBuffer, MAX_TX_BURST, NULL);
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("TxRingCheck %f\n", time_spent * 1000000.0);
-
-  if (nbTx == 0)
-    {
-      return;
-    }
-  do
-  {
-    begin = clock();
-    ret = rte_eth_tx_burst(m_portId, queueId, (struct rte_mbuf **)txBuffer, nbTx);
-    end = clock();
-    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    printf("Transmission %f\n", time_spent * 1000000.0);
-    txBuffer += ret;
-    nbTx -= ret;
-    printf("Transmitted %d pkts\n", ret);
-    }
-  while ( nbTx > 0 );
-
+  if (!m_queue->IsStopped())
+    return;
+  struct rte_eth_stats stats;
+  rte_eth_stats_get(m_portId, &stats);
+  m_queue->NotifyTransmittedBytes (stats.obytes);
+  rte_eth_stats_reset(m_portId);
 }
 
 void
@@ -335,33 +318,43 @@ DpdkNetDevice::HandleRx ()
   {
     struct rte_mbuf *pkt = NULL;
     pkt = m_rxBuffer->pkts[i];
-    bool skip = false;
 
-    for (uint16_t j = 0; j < i-1; j++)
+    if (!pkt)
     {
-      if (pkt == m_rxBuffer->pkts[i])
-      {
-        skip = true;
-        break;
-      }
-    }
-
-    if (!pkt || skip || pkt == m_lastRxPkt) {
-      // Duplicate packet, I don't know why, but we can ignore
       continue;
     }
 
-    m_lastRxPkt = pkt;
+    // bool skip = false;
+    // for (uint16_t j = 0; j < i-1; j++)
+    // {
+    //   if (pkt == m_rxBuffer->pkts[j])
+    //   {
+    //     skip = true;
+    //     break;
+    //   }
+    // }
+
+    // if (skip || pkt == m_lastRxPkt) {
+    //   // Duplicate packet, I don't know why, but we can ignore
+    //   continue;
+    // }
+
+    // m_lastRxPkt = pkt;
     uint8_t * buf = rte_pktmbuf_mtod(pkt, uint8_t *);
     size_t length = pkt->data_len;
     FdNetDevice::ReceiveCallback(buf,length);
-    if (pkt->data_len != pkt->pkt_len) {
-      printf("Packet Len %d != Data Len %d\n", pkt->pkt_len, pkt->data_len);
-      fflush(stdout);
-    }
   }
 
   m_rxBuffer->length = 0;
+
+  // if(m_queue)
+  // {
+  //   struct rte_eth_stats stats;
+  //   rte_eth_stats_get(m_portId, &stats);
+  //   m_queue->NotifyTransmittedBytes (stats.obytes);
+  //   rte_eth_stats_reset(m_portId);
+  // }
+  
 }
 
 void DpdkNetDevice::_StartSimulation(void)
@@ -385,6 +378,8 @@ DpdkNetDevice::LaunchCore (void *arg)
     {
       return 0;
     }
+
+  rte_eth_stats_reset(0);  
 
   while (!m_forceQuit)
     {
@@ -448,11 +443,12 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
     }
 
   // Set number of logical cores to 1
-  unsigned int nbLcores = 1;
+  unsigned int nbLcores = 2;
   static uint16_t nbRxd = RTE_TEST_RX_DESC_DEFAULT;
   static uint16_t nbTxd = RTE_TEST_TX_DESC_DEFAULT;
 
   unsigned int nbMbufs = RTE_MAX (nbPorts * (nbRxd + nbTxd + MAX_PKT_BURST +
+                                             MAX_PKT_BURST +
                                              nbLcores * MEMPOOL_CACHE_SIZE), 8192U);
 
   NS_LOG_INFO ("Create the mbuf pool");
@@ -581,6 +577,9 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
       NS_LOG_LOGIC ("Rx rte_ring created successfully: " << m_rxRing);
     }
 
+
+  rte_eth_stats_reset(m_portId);
+
   NS_LOG_INFO ("Launching core threads");
   rte_eal_mp_remote_launch (LaunchCore, this, CALL_MASTER);
 }
@@ -614,42 +613,72 @@ DpdkNetDevice::FreeBuffer (uint8_t* buf)
     return;
   pkt = (struct rte_mbuf *)RTE_PTR_SUB(buf, sizeof(rte_mbuf) + RTE_PKTMBUF_HEADROOM);
 
-  rte_pktmbuf_free(pkt);
+  try {
+    rte_pktmbuf_free(pkt);
+  } catch (...) {
+    NS_LOG_ERROR ("Cant free buffer " << buf);
+  }
+}
+
+
+void
+DpdkNetDevice::NotifyNewAggregate (void)
+{
+  NS_LOG_FUNCTION (this);
+  if (m_queueInterface == 0)
+    {
+      Ptr<NetDeviceQueueInterface> ndqi = this->GetObject<NetDeviceQueueInterface> ();
+      //verify that it's a valid netdevice queue interface and that
+      //the netdevice queue interface was not set before
+      if (ndqi != 0)
+        {
+          m_queueInterface = ndqi;
+        }
+    }
+  NetDevice::NotifyNewAggregate ();
+  if (m_queueInterface) {
+    m_queueInterface->SetTxQueuesN (1);
+    m_queueInterface->CreateTxQueues ();
+    m_queue = m_queueInterface->GetTxQueue (0);
+    if (m_queue) {
+      // m_queue->SetWakeCallback ( MakeCallback (&DpdkNetDevice::HandleRx, this) );
+      m_queue->Start();
+    }
+  }
 }
 
 ssize_t
 DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
-  struct rte_mbuf *pkt;
+  // struct rte_mbuf *pkt;
+
+  struct rte_mbuf ** pkt = new struct rte_mbuf*[1];
   int queueId = 0;
 
-  if (buffer == NULL) {
+  if (buffer == NULL) { // || (m_queue && m_queue->IsStopped()) ) {
     return -1;
   }
 
   // uint64_t cur_tsc = rte_rdtsc();
 
 
-  pkt = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
+  pkt[0] = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
                                 sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM);
 
-  pkt->pkt_len = length;
-  pkt->data_len = length;
-  // begin = clock();
-  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
-  // end = clock();
-  // time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  // printf("Write::tx_buffer %f\n", time_spent * 1000000.0);
+  pkt[0]->pkt_len = length;
+  pkt[0]->data_len = length;
+  // rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
 
-  // if (unlikely(cur_tsc >= m_nextTxTsc))
-  // {
-  int ret = rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  // int ret = rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
+  // if (m_queue)
+  //   m_queue->NotifyQueuedBytes (length);
+  int ret = rte_eth_tx_burst (m_portId, queueId, (struct rte_mbuf**) pkt, 1);
   if (unlikely(ret < 1)) {
+    printf("W\n");
+    // if (m_queue)
+    //   m_queue->NotifyTransmittedBytes (length);
     return -1;
-  }
-  //   m_nextTxTsc = cur_tsc + m_txTimeout;
-  // }
-  
+  }  
 
   return length;
 }

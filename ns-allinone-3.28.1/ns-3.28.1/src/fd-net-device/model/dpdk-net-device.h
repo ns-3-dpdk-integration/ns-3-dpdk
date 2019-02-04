@@ -22,6 +22,9 @@ namespace ns3
   class Node;
   class DpdkNetDevice;
 
+  class NetDeviceQueueInterface;
+  class NetDeviceQueue;
+
   /**
  * \ingroup fd-net-device
  * \brief This class performs the actual data reading from the DpdkNetDevice.
@@ -199,6 +202,8 @@ namespace ns3
     struct rte_mbuf* Read();
     // std::pair<uint8_t *, size_t> Read();
 
+    virtual void NotifyNewAggregate (void);
+
   protected:
     /**
    * Spin up the device
@@ -245,6 +250,9 @@ namespace ns3
     uint64_t m_nextTxTsc;
     uint64_t m_txTimeout;
     struct rte_mbuf* m_lastRxPkt;
+
+    Ptr<NetDeviceQueueInterface> m_queueInterface; //!< NetDevice queue interface
+    Ptr<NetDeviceQueue> m_queue;                   //!< NetDevice queue
   };
 
 } //

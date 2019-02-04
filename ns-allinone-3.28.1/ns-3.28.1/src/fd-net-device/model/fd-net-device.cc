@@ -221,7 +221,7 @@ FdNetDevice::~FdNetDevice ()
         std::pair<uint8_t *, ssize_t> next = m_pendingQueue.front ();
         m_pendingQueue.pop ();
 
-        free (next.first);
+        FreeBuffer (next.first);
       }
   }
 }
@@ -321,6 +321,7 @@ FdNetDevice::ReceiveCallback (uint8_t *buf, ssize_t len)
     if (m_pendingQueue.size () >= m_maxPendingReads)
       {
         NS_LOG_WARN ("Packet dropped");
+        printf("FD:RC\n");
         skip = true;
       }
     else
@@ -634,7 +635,6 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
   // clock_t end = clock();
   // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   // printf("FdNetDevice::Write %f\n", time_spent * 1000000.0);
-  FreeBuffer (buffer);
 
   if (written == -1 || (size_t)written != len)
     {
@@ -650,7 +650,9 @@ FdNetDevice::Write (uint8_t *buffer, size_t length)
 {
   NS_LOG_FUNCTION (this << buffer << length);
 
-  return write (m_fd, buffer, length);
+  uint32_t ret = write (m_fd, buffer, length);
+  FreeBuffer (buffer);
+  return ret;
 }
 
 ssize_t
