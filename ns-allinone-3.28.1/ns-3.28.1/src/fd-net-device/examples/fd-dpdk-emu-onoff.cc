@@ -183,14 +183,14 @@ int main(int argc, char *argv[])
         ealArgv[1] = new char[20];
         strcpy(ealArgv[1], "-l");
         ealArgv[2] = new char[20];
-        strcpy(ealArgv[2], "0,1");
+        strcpy(ealArgv[2], "0,1,2,3");
         ealArgv[3] = new char[20];
         strcpy(ealArgv[3], "-d");
         ealArgv[4] = new char[20];
         strcpy(ealArgv[4], "librte_pmd_e1000.so");
         ealArgv[5] = new char[20];
         strcpy(ealArgv[5], "-d");
-        ealArgv[6] = new char[20];
+        ealArgv[6] = new char[50];
         strcpy(ealArgv[6], "librte_mempool_ring.so");
         emu.SetDpdkMode(7, ealArgv);
     }

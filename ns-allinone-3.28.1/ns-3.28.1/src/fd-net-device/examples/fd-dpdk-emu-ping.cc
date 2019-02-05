@@ -113,7 +113,7 @@ main (int argc, char *argv[])
   strcpy (ealArgv[4], "librte_pmd_e1000.so");
   ealArgv[5] = new char[20];
   strcpy (ealArgv[5], "-d");
-  ealArgv[6] = new char[20];
+  ealArgv[6] = new char[50];
   strcpy (ealArgv[6], "librte_mempool_ring.so");
   emu.SetDpdkMode (7, ealArgv);
   emu.SetDeviceName (deviceName);
