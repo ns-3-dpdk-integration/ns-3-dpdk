@@ -64,7 +64,7 @@ PingRtt(std::string context, Time rtt)
 static void
 CwndChange (uint32_t old, uint32_t new_)
 {
-    std::ofstream fPlotCwnd = std::ofstream ("harsh-cwnd.plotme", std::ios::out | std::ios::app);
+    std::ofstream fPlotCwnd = std::ofstream ("cwnd.plotme", std::ios::out | std::ios::app);
     fPlotCwnd << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
     fPlotCwnd.close ();
 }
@@ -72,19 +72,40 @@ CwndChange (uint32_t old, uint32_t new_)
 static void
 SstChange (uint32_t old, uint32_t new_)
 {
-    std::ofstream fPlotSst = std::ofstream ("harsh-sst.plotme", std::ios::out | std::ios::app);
+    std::ofstream fPlotSst = std::ofstream ("sst.plotme", std::ios::out | std::ios::app);
     fPlotSst << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+    fPlotSst.close ();
+}
+
+static void
+BytesInFlightChange (uint32_t old, uint32_t new_)
+{
+    std::ofstream fPlotSst = std::ofstream ("inflight.plotme", std::ios::out | std::ios::app);
+    fPlotSst << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+    fPlotSst.close ();
+}
+
+static void
+DropTrace (std::string context, Ptr<Packet> pkt)
+{
+    std::ofstream fPlotSst = std::ofstream ("drops.plotme", std::ios::out | std::ios::app);
+    fPlotSst << Simulator::Now ().GetSeconds () << std::endl;
     fPlotSst.close ();
 }
 
 // Trace Function for cwnd
 void
-TraceCwnd (uint32_t node, uint32_t cwndWindow,
+AddTraces (uint32_t node, uint32_t cwndWindow,
            Callback <void, uint32_t, uint32_t> CwndTrace,
-           Callback <void, uint32_t, uint32_t> SstTrace)
+           Callback <void, uint32_t, uint32_t> SstTrace,
+           Callback <void, uint32_t, uint32_t> InflightTrace,
+           Callback <void, std::string, Ptr<Packet> > DropTrace )
 {
   Config::ConnectWithoutContext ("/NodeList/" + std::to_string (node) + "/$ns3::TcpL4Protocol/SocketList/" + std::to_string (cwndWindow) + "/CongestionWindow", CwndTrace);
   Config::ConnectWithoutContext ("/NodeList/" + std::to_string (node) + "/$ns3::TcpL4Protocol/SocketList/" + std::to_string (cwndWindow) + "/SlowStartThreshold", SstTrace);
+  Config::ConnectWithoutContext ("/NodeList/" + std::to_string (node) + "/$ns3::TcpL4Protocol/SocketList/" + std::to_string (cwndWindow) + "/BytesInFlight", InflightTrace);
+  Config::ConnectWithoutContext ("/NodeList/*/DeviceList/*/$ns3::FdNetDevice/Mac/MacRxDrop", DropTrace);
+  Config::ConnectWithoutContext ("/NodeList/*/DeviceList/*/$ns3::FdNetDevice/Phy/PhyRxDrop", DropTrace);
 }
 
 int main(int argc, char *argv[])
@@ -265,7 +286,7 @@ int main(int argc, char *argv[])
 
         ApplicationContainer clientApps = onoff.Install(node);
         clientApps.Start(Seconds(6.0));
-        clientApps.Stop(Seconds(206.0));
+        clientApps.Stop(Seconds(106.0));
 
         if (ping)
         {
@@ -284,9 +305,13 @@ int main(int argc, char *argv[])
         emu.EnablePcap("fd-client", device);
     }
 
-    Simulator::Schedule ( Seconds (6.001), &TraceCwnd, 0, 0, MakeCallback (&CwndChange                            ), MakeCallback (&SstChange) );
+    Simulator::Schedule ( Seconds (6.001), &AddTraces, 0, 0, 
+            MakeCallback (&CwndChange),
+            MakeCallback (&SstChange),
+            MakeCallback (&BytesInFlightChange),
+            MakeCallback (&DropTrace) );
 
-    Simulator::Stop(Seconds(215));
+    Simulator::Stop(Seconds(110));
 
     printf("Press Enter to continue (pid: %d)\n", getpid());
     getchar();

@@ -1,10 +1,10 @@
 ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \
-    --deviceName=0000:00:11.0 \
-    --client=192.168.43.44 \
-    --server=192.168.43.142 \
+    --deviceName=0000:00:1f.6 \
+    --client=192.168.43.1 \
+    --server=192.168.43.2 \
     --mac-server=20:39:56:6c:47:1b \
-    --data-rate=15Mb/s \
-    --transportPort=Udp \
+    --data-rate=1000Mb/s \
+    --transportPort=Tcp \
     --dpdkMode=true'
 
 # ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \
