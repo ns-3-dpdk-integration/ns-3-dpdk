@@ -28,8 +28,6 @@
 #define MEMPOOL_CACHE_SIZE 256 //define the cache size for the memory pool
 
 #define DEFAULT_RING_SIZE 256 //default rte ring size for tx and rx
-#define MAX_TX_BURST 1 //maximum no of packets transmitted from rte_ring to nic
-#define MAX_RX_BURST 1 //maximum no of packets read from nic to rte_ring
 
 #define RTE_TEST_RX_DESC_DEFAULT 1024 //number of RX ring descriptors
 #define RTE_TEST_TX_DESC_DEFAULT 1024 //number of TX ring descriptors
@@ -106,7 +104,6 @@ DpdkNetDeviceReader::Run (void)
   while (likely(!m_stop))
     {
       m_device->HandleTx();
-      // usleep(1000);
     }
 }
 
@@ -116,8 +113,6 @@ DpdkNetDeviceReader::Start (Callback<void, uint8_t *, ssize_t> readCallback)
   NS_LOG_FUNCTION (this);
 
   m_readCallback = readCallback;
-  // m_readThread = Create<SystemThread> (MakeCallback (&DpdkNetDeviceReader::Run, this));
-  // m_readThread->Start ();
 }
 
 void
@@ -188,7 +183,7 @@ DpdkNetDevice::StartDevice (void)
   m_nodeId = GetNode ()->GetId ();
 
   m_reader = Create<DpdkNetDeviceReader> ();
-  // // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
+  // 22 bytes covers 14 bytes Ethernet header with possible 8 bytes LLC/SNAP
   m_reader->SetFdNetDevice (this);
   m_reader->SetBufferSize (m_mtu + 22);
   m_reader->Start (MakeCallback (&FdNetDevice::ReceiveCallback, this));
@@ -206,24 +201,11 @@ DpdkNetDevice::StopDevice (void)
   Simulator::Cancel (m_txEvent);
   m_reader->Stop ();
   m_forceQuit = true;
-  // rte_ring_free (m_txRing);
-  // rte_ring_free (m_rxRing);
-
+  
   rte_eal_wait_lcore(1);
 
   rte_eth_dev_stop (m_portId);
   rte_eth_dev_close (m_portId);
-
-  // Print port stats
-  // struct rte_eth_stats stats;
-  // rte_eth_stats_get(m_portId, &stats);
-  // printf("----------------- Port Stats -----------------\n");
-  // printf("Rx pkts\t%ld\n", stats.ipackets);
-  // printf("Tx pkts\t%ld\n", stats.opackets);
-  // printf("Rx drop\t%ld\n", stats.imissed);
-  // printf("Rx error\t%ld\n", stats.ierrors);
-  // printf("Tx fail\t%ld\n", stats.oerrors);
-  // printf("-------------------- DONE --------------------\n");
 }
 
 void
@@ -326,37 +308,12 @@ DpdkNetDevice::HandleRx ()
       continue;
     }
 
-    // bool skip = false;
-    // for (uint16_t j = 0; j < i-1; j++)
-    // {
-    //   if (pkt == m_rxBuffer->pkts[j])
-    //   {
-    //     skip = true;
-    //     break;
-    //   }
-    // }
-
-    // if (skip || pkt == m_lastRxPkt) {
-    //   // Duplicate packet, I don't know why, but we can ignore
-    //   continue;
-    // }
-
-    // m_lastRxPkt = pkt;
     uint8_t * buf = rte_pktmbuf_mtod(pkt, uint8_t *);
     size_t length = pkt->data_len;
     FdNetDevice::ReceiveCallback(buf,length);
   }
 
-  m_rxBuffer->length = 0;
-
-  // if(m_queue)
-  // {
-  //   struct rte_eth_stats stats;
-  //   rte_eth_stats_get(m_portId, &stats);
-  //   m_queue->NotifyTransmittedBytes (stats.obytes);
-  //   rte_eth_stats_reset(m_portId);
-  // }
-  
+  m_rxBuffer->length = 0; 
 }
 
 void DpdkNetDevice::_StartSimulation(void)
@@ -381,16 +338,11 @@ DpdkNetDevice::LaunchCore (void *arg)
       return 0;
     }
 
-  rte_eth_stats_reset(0);  
+  rte_eth_stats_reset(0);
 
   while (!m_forceQuit)
     {
-
       dpdkNetDevice->HandleRx ();
-
-      // we use a period to check and notify of 200 us; it is a value close to
-      // the interrupt coalescence period of a real device
-      // usleep (2);
     }
 
   return 0;
@@ -558,28 +510,6 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
 
   CheckAllPortsLinkStatus ();
 
-  // NS_LOG_INFO ("Initialize rte_rings for Tx/Rx intermediate packet processing");
-  // m_txRing = rte_ring_create ("TX", m_ringSize, SOCKET_ID_ANY, 0);
-  // if (m_txRing == NULL)
-  //   {
-  //     rte_exit (EXIT_FAILURE, "Error in creating Tx ring.\n");
-  //   }
-  // else
-  //   {
-  //     NS_LOG_LOGIC ("Tx rte_ring created successfully: " << m_txRing);
-  //   }
-
-  // m_rxRing = rte_ring_create ("RX", m_ringSize, SOCKET_ID_ANY, 0);
-  // if (m_rxRing == NULL)
-  //   {
-  //     rte_exit (EXIT_FAILURE, "Error in creating Rx ring.\n");
-  //   }
-  // else
-  //   {
-  //     NS_LOG_LOGIC ("Rx rte_ring created successfully: " << m_rxRing);
-  //   }
-
-
   rte_eth_stats_reset(m_portId);
 
   NS_LOG_INFO ("Launching core threads");
@@ -652,12 +582,10 @@ DpdkNetDevice::NotifyNewAggregate (void)
 ssize_t
 DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
-  // struct rte_mbuf *pkt;
-
   struct rte_mbuf ** pkt = new struct rte_mbuf*[1];
   int queueId = 0;
 
-  if (buffer == NULL || m_txBuffer->length == MAX_PKT_BURST) { // || (m_queue && m_queue->IsStopped()) ) {
+  if (buffer == NULL || m_txBuffer->length == MAX_PKT_BURST) {
     return -1;
   }
 
@@ -690,11 +618,6 @@ DpdkNetDevice::Read ()
 
   pkt = m_rxBuffer->pkts[m_rxBufferHead++];
   return pkt;
-
-  // uint8_t* buf = NULL;
-  // buf = rte_pktmbuf_mtod(pkt, uint8_t *);
-
-  // return std::make_pair(buf, pkt->pkt_len);
 }
 
 } // namespace ns3

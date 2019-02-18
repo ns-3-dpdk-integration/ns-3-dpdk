@@ -98,7 +98,7 @@ DropTrace (std::string context, Ptr<Packet> pkt)
     fPlotDrops << Simulator::Now ().GetSeconds () << std::endl;
 }
 
-// Trace Function for cwnd
+// Trace Function for cwnd, ss threshold, packtes in flight and packets dropped
 void
 AddTraces (uint32_t node, uint32_t cwndWindow,
            Callback <void, uint32_t, uint32_t> CwndTrace,
@@ -117,8 +117,6 @@ int main(int argc, char *argv[])
 {
     uint16_t sinkPort = 8000;
     uint32_t packetSize = 1400; // bytes
-    // uint64_t rcvBufSize = 1 << 30;
-    // uint64_t sndBufSize = 1 << 30;
     std::string dataRate("950Mb/s");
     bool serverMode = false;
 
@@ -133,7 +131,7 @@ int main(int argc, char *argv[])
     std::string socketType;
 
     bool dpdkMode = true;
-    bool ping = true;
+    bool ping = false;
     int dpdkTimeout = 2000;
 
     double samplingPeriod = 0.5; // s
@@ -185,21 +183,15 @@ int main(int argc, char *argv[])
 
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(true));
 
-    // Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(rcvBufSize));
-    // Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(sndBufSize));
-
     Config::SetDefault("ns3::TcpSocketBase::Sack", BooleanValue(false));
-    // Setting min rto to linux default value
-    // Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue (MilliSeconds (200) ) );
-    // Config::SetDefault("ns3::TcpSocket::InitialSlowStartThreshold", UintegerValue(50000));   
-
+    
     NS_LOG_INFO("Create Node");
     Ptr<Node> node = CreateObject<Node>();
 
     NS_LOG_INFO("Create Device");
     EmuFdNetDeviceHelper emu;
 
-    // set the dpdk emulation mode 
+    // set the dpdk emulation mode
     if (dpdkMode)
     {
         // set the dpdk emulation mode
@@ -236,20 +228,6 @@ int main(int argc, char *argv[])
     InternetStackHelper internetStackHelper;
     internetStackHelper.SetIpv4StackInstall(true);
     internetStackHelper.Install(node);
-
-    // std::string linkDataRate = "100Mbps";
-    // std::string linkDelay = "1ms";
-    // bool bql = true;
-
-    // Config::SetDefault ("ns3::PfifoFastQueueDisc::MaxSize",
-    //                     QueueSizeValue (QueueSize (QueueSizeUnit::PACKETS, 3000)));
-    // TrafficControlHelper tch;
-    // tch.SetRootQueueDisc ("ns3::PfifoFastQueueDisc");
-    // if(bql)
-    // {
-    //     tch.SetQueueLimits ("ns3::DynamicQueueLimits", "HoldTime", StringValue("20ms"));
-    // }
-    // QueueDiscContainer queueDiscs = tch.Install (device);
 
     // TODO: Add sampling code.
     // we enable the stats sampling client side only (we send traffic from client to server)

@@ -70,11 +70,7 @@ FdReader::Data FdNetDeviceFdReader::DoRead (void)
 
   if (m_device)
     {
-      // clock_t begin = clock();
       len = m_device->Read(buf);
-      // clock_t end = clock();
-      // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-      // printf("FdNetDevice::Read %f\n", time_spent * 1000000.0);
     }
 
   if (len <= 0)
@@ -321,7 +317,6 @@ FdNetDevice::ReceiveCallback (uint8_t *buf, ssize_t len)
     if (m_pendingQueue.size () >= m_maxPendingReads)
       {
         NS_LOG_WARN ("Packet dropped");
-        printf("FD:RC\n");
         skip = true;
       }
     else
@@ -630,13 +625,10 @@ FdNetDevice::SendFrom (Ptr<Packet> packet, const Address& src, const Address& de
     {
       AddPIHeader (buffer, len);
     }
-  // clock_t begin = clock();
-  ssize_t written = Write(buffer, len);
-  // clock_t end = clock();
-  // double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  // printf("FdNetDevice::Write %f\n", time_spent * 1000000.0);
 
-  if (written == -1 || (size_t)written != len)
+  ssize_t written = Write(buffer, len);
+
+  if (written == -1 || (size_t) written != len)
     {
       m_macTxDropTrace (packet);
       return false;

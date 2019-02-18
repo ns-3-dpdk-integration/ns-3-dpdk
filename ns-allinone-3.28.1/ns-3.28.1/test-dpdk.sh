@@ -5,7 +5,7 @@
     --mac-server=20:39:56:6c:47:1b \
     --data-rate='"$1"'Mb/s \
     --transportPort='"$2"' \
-    --ping=true \
+    --ping=false \
     --dpdkTimeout=1000 \
     --dpdkMode=true'
 

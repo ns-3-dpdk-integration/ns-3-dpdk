@@ -164,8 +164,12 @@ namespace ns3
    */
     void SetRteRingSize(int ringSize);
 
-
-  void SetTimeout (int timeout);
+    /**
+   * A function to set the timeout value.
+   *
+   * \param timeout Timeout value.
+   */
+    void SetTimeout (int timeout);
 
     /**
    * A function to handle rx & tx operations.
@@ -188,10 +192,24 @@ namespace ns3
    */
     bool IsLinkUp(void) const;
 
+    /**
+   * Launches a function LaunchCore to provide a dedicated core to handle incoming packets from the NIC.
+   */
     void StartSimulation(void);
+
+    /**
+   * Runs and Destroys the ns-3 Simulator.
+   */
     void _StartSimulation(void);
 
+     /**
+   * Free the given packet buffer.
+   */
     virtual void FreeBuffer (uint8_t* buf);
+    
+    /**
+   * Allocate packet buffer.
+   */
     virtual uint8_t* AllocateBuffer(size_t len);
 
     /**
@@ -200,7 +218,6 @@ namespace ns3
    * \return The size of data read.
    */
     struct rte_mbuf* Read();
-    // std::pair<uint8_t *, size_t> Read();
 
     virtual void NotifyNewAggregate (void);
 
