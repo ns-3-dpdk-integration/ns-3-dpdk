@@ -4,15 +4,15 @@ import shlex
 from pwn import *
 
 NUMTESTS = {
-  "tcp": 15,
-  # "udp": 1
+  # "tcp": 1,
+  "udp": 1
 }
 
 TESTS = [   
-  # {
-  #   "name": "testdpdk",
-  #   "dir": "/home/student/Desktop/harsh/Integration-of-DPDK-in-ns-3/ns-allinone-3.28.1/ns-3.28.1"
-  # }
+ #  {
+ #    "name": "testdpdk",
+ #    "dir": "/home/student/Desktop/harsh/Integration-of-DPDK-in-ns-3/ns-allinone-3.28.1/ns-3.28.1"
+ #  }
   {
     "name": "testfd",
     "dir": "/home/student/Desktop/harsh/Integration-of-DPDK-in-ns-3/ns-allinone-3.28.1/ns-3.28.1"
@@ -24,8 +24,8 @@ TESTS = [
 ]
 
 PROTS = [ 
-  "tcp"
-  # "udp"
+  # "tcp"
+  "udp"
 ]
 
 SPEEDS = [ 
@@ -56,7 +56,7 @@ def do_test(test, prot, speed, i):
     
     # Start test
     print("Starting test process")
-    test_process = process(get_command("sh -c ~/bin/" + command))
+    test_process = process(get_command("sh -c ~/bin/" + command + ' > stdoutput'))
     # test_process.interactive()
     test_process.recvuntil("(pid: ")
     pid = test_process.recvuntil(")")[:-1]
@@ -87,10 +87,10 @@ def do_test(test, prot, speed, i):
     run_command("mkdir -p {0}".format(results_dir))
 
     run_command("mv {0}/fd-client-0-0.pcap {1}/".format(test["dir"], results_dir))
-    if prot == "tcp":
-      run_command("mv {0}/cwnd.plotme {1}/".format(test["dir"], results_dir))
-      run_command("mv {0}/sst.plotme {1}/".format(test["dir"], results_dir))
-      run_command("mv {0}/inflight.plotme {1}/".format(test["dir"], results_dir))
+    run_command("mv {0}/cwnd.plotme {1}/".format(test["dir"], results_dir))
+    run_command("mv {0}/sst.plotme {1}/".format(test["dir"], results_dir))
+    run_command("mv {0}/inflight.plotme {1}/".format(test["dir"], results_dir))
+    run_command("mv {0}/ping.plotme {1}/".format(test["dir"], results_dir))
     os.system("mv {0}/drops.plotme {1}/".format(test["dir"], results_dir))
     run_command("sudo mv {0} {1}/".format(vtune_result, results_dir))
 
@@ -104,4 +104,4 @@ for prot in PROTS:
         for speed in SPEEDS:
             for i in range(NUMTESTS[prot]):
                 do_test(test, prot, speed, i)
-            raw_input("Start next set of test???")
+                raw_input("Start next test???")

@@ -165,7 +165,7 @@ namespace ns3
     void SetRteRingSize(int ringSize);
 
 
-  void SetTimeoutFactor(int factor);
+  void SetTimeout (int timeout);
 
     /**
    * A function to handle rx & tx operations.
@@ -250,6 +250,7 @@ namespace ns3
     uint64_t m_nextTxTsc;
     uint64_t m_txTimeout;
     struct rte_mbuf* m_lastRxPkt;
+    EventId m_txEvent;
 
     Ptr<NetDeviceQueueInterface> m_queueInterface; //!< NetDevice queue interface
     Ptr<NetDeviceQueue> m_queue;                   //!< NetDevice queue

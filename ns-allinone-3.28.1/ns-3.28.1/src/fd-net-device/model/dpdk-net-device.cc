@@ -152,7 +152,7 @@ DpdkNetDevice::DpdkNetDevice ()
   NS_LOG_FUNCTION (this);
   m_ringSize = DEFAULT_RING_SIZE;
   m_mempool = NULL;
-  m_txTimeout = rte_get_timer_hz() / 16;
+  m_txTimeout = 2000;
   m_nextTxTsc = rte_rdtsc() + m_txTimeout;
   m_rxBufferHead = 0;
   m_lastRxPkt = NULL;
@@ -161,10 +161,10 @@ DpdkNetDevice::DpdkNetDevice ()
 }
 
 void
-DpdkNetDevice::SetTimeoutFactor (int factor)
+DpdkNetDevice::SetTimeout (int timeout)
 {
-  printf("Setting DPDK timeout = 1s / %d\n", factor);
-  m_txTimeout = rte_get_timer_hz() / factor;
+  printf("Setting DPDK timeout = %d us\n", timeout);
+  m_txTimeout = timeout;
 }
 
 void
@@ -203,10 +203,16 @@ DpdkNetDevice::StopDevice (void)
   NS_LOG_FUNCTION (this);
 
   ns3::FdNetDevice::StopDevice ();
+  Simulator::Cancel (m_txEvent);
   m_reader->Stop ();
   m_forceQuit = true;
-  rte_ring_free (m_txRing);
-  rte_ring_free (m_rxRing);
+  // rte_ring_free (m_txRing);
+  // rte_ring_free (m_rxRing);
+
+  rte_eal_wait_lcore(1);
+
+  rte_eth_dev_stop (m_portId);
+  rte_eth_dev_close (m_portId);
 
   // Print port stats
   // struct rte_eth_stats stats;
@@ -300,12 +306,8 @@ DpdkNetDevice::SignalHandler (int signum)
 void
 DpdkNetDevice::HandleTx ()
 {
-  if (!m_queue->IsStopped())
-    return;
-  struct rte_eth_stats stats;
-  rte_eth_stats_get(m_portId, &stats);
-  m_queue->NotifyTransmittedBytes (stats.obytes);
-  rte_eth_stats_reset(m_portId);
+  int queueId = 0;
+  rte_eth_tx_buffer_flush (m_portId, queueId, m_txBuffer);
 }
 
 void
@@ -556,26 +558,26 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
 
   CheckAllPortsLinkStatus ();
 
-  NS_LOG_INFO ("Initialize rte_rings for Tx/Rx intermediate packet processing");
-  m_txRing = rte_ring_create ("TX", m_ringSize, SOCKET_ID_ANY, 0);
-  if (m_txRing == NULL)
-    {
-      rte_exit (EXIT_FAILURE, "Error in creating Tx ring.\n");
-    }
-  else
-    {
-      NS_LOG_LOGIC ("Tx rte_ring created successfully: " << m_txRing);
-    }
+  // NS_LOG_INFO ("Initialize rte_rings for Tx/Rx intermediate packet processing");
+  // m_txRing = rte_ring_create ("TX", m_ringSize, SOCKET_ID_ANY, 0);
+  // if (m_txRing == NULL)
+  //   {
+  //     rte_exit (EXIT_FAILURE, "Error in creating Tx ring.\n");
+  //   }
+  // else
+  //   {
+  //     NS_LOG_LOGIC ("Tx rte_ring created successfully: " << m_txRing);
+  //   }
 
-  m_rxRing = rte_ring_create ("RX", m_ringSize, SOCKET_ID_ANY, 0);
-  if (m_rxRing == NULL)
-    {
-      rte_exit (EXIT_FAILURE, "Error in creating Rx ring.\n");
-    }
-  else
-    {
-      NS_LOG_LOGIC ("Rx rte_ring created successfully: " << m_rxRing);
-    }
+  // m_rxRing = rte_ring_create ("RX", m_ringSize, SOCKET_ID_ANY, 0);
+  // if (m_rxRing == NULL)
+  //   {
+  //     rte_exit (EXIT_FAILURE, "Error in creating Rx ring.\n");
+  //   }
+  // else
+  //   {
+  //     NS_LOG_LOGIC ("Rx rte_ring created successfully: " << m_rxRing);
+  //   }
 
 
   rte_eth_stats_reset(m_portId);
@@ -655,30 +657,22 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
   struct rte_mbuf ** pkt = new struct rte_mbuf*[1];
   int queueId = 0;
 
-  if (buffer == NULL) { // || (m_queue && m_queue->IsStopped()) ) {
+  if (buffer == NULL || m_txBuffer->length == MAX_PKT_BURST) { // || (m_queue && m_queue->IsStopped()) ) {
     return -1;
   }
-
-  // uint64_t cur_tsc = rte_rdtsc();
-
 
   pkt[0] = (struct rte_mbuf *)RTE_PTR_SUB(buffer, 
                                 sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM);
 
   pkt[0]->pkt_len = length;
   pkt[0]->data_len = length;
-  // rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt);
+  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt[0]);
 
-  // int ret = rte_eth_tx_buffer_flush(m_portId, queueId, m_txBuffer);
-  // if (m_queue)
-  //   m_queue->NotifyQueuedBytes (length);
-  int ret = rte_eth_tx_burst (m_portId, queueId, (struct rte_mbuf**) pkt, 1);
-  if (unlikely(ret < 1)) {
-    printf("W\n");
-    // if (m_queue)
-    //   m_queue->NotifyTransmittedBytes (length);
-    return -1;
-  }  
+  if (m_txBuffer->length == 1) {
+    // If this is a first packet in buffer, schedule a tx.
+    Simulator::Cancel (m_txEvent);
+    m_txEvent = Simulator::Schedule ( Time ( MicroSeconds(m_txTimeout) ), &DpdkNetDevice::HandleTx, this);
+  }
 
   return length;
 }

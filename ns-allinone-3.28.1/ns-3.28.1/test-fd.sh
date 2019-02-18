@@ -6,4 +6,5 @@ ifconfig eno1 promisc
     --mac-server=f4:8e:38:f4:6b:06 \
     --data-rate='"$1"'Mb/s \
     --transportPort='"$2"' \
+    --ping=true \
     --dpdkMode=false '

@@ -3,8 +3,10 @@
     --client=192.168.43.1 \
     --server=192.168.43.2 \
     --mac-server=20:39:56:6c:47:1b \
-    --data-rate=1000Mb/s \
-    --transportPort=Tcp \
+    --data-rate='"$1"'Mb/s \
+    --transportPort='"$2"' \
+    --ping=true \
+    --dpdkTimeout=1000 \
     --dpdkMode=true'
 
 # ./waf --run 'src/fd-net-device/examples/fd-dpdk-emu-onoff \

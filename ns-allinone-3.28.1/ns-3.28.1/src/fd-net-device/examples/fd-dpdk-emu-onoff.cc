@@ -55,42 +55,47 @@ NS_LOG_COMPONENT_DEFINE("EmuFdNetDeviceSaturationExample");
 //     }
 // }
 
+std::ofstream fPing = std::ofstream ("ping.plotme", std::ios::out | std::ios::app);
 static void
 PingRtt(std::string context, Time rtt)
 {
-    NS_LOG_UNCOND("Received Response with RTT = " << rtt);
+    fPing << Simulator::Now ().GetSeconds () << " " << (double)rtt.GetMicroSeconds() / 1000.0 << std::endl;
 }
 
+std::ofstream fPlotCwnd = std::ofstream ("cwnd.plotme", std::ios::out | std::ios::app);
+int64_t cwndTime = 0;
 static void
 CwndChange (uint32_t old, uint32_t new_)
 {
-    std::ofstream fPlotCwnd = std::ofstream ("cwnd.plotme", std::ios::out | std::ios::app);
-    fPlotCwnd << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
-    fPlotCwnd.close ();
+    if (unlikely(cwndTime + 100 < Simulator::Now().GetMilliSeconds())) {
+        fPlotCwnd << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+        cwndTime = Simulator::Now().GetMilliSeconds();
+    }
 }
 
+std::ofstream fPlotSst = std::ofstream ("sst.plotme", std::ios::out | std::ios::app);
 static void
 SstChange (uint32_t old, uint32_t new_)
 {
-    std::ofstream fPlotSst = std::ofstream ("sst.plotme", std::ios::out | std::ios::app);
     fPlotSst << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
-    fPlotSst.close ();
 }
 
+std::ofstream fPlotInflight = std::ofstream ("inflight.plotme", std::ios::out | std::ios::app);
+int64_t inflightTime = 0;
 static void
 BytesInFlightChange (uint32_t old, uint32_t new_)
 {
-    std::ofstream fPlotSst = std::ofstream ("inflight.plotme", std::ios::out | std::ios::app);
-    fPlotSst << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
-    fPlotSst.close ();
+    if (unlikely(inflightTime + 100 < Simulator::Now().GetMilliSeconds())) {
+        fPlotInflight << Simulator::Now ().GetSeconds () << " " << new_ << std::endl;
+        inflightTime = Simulator::Now().GetMilliSeconds();
+    }
 }
 
+std::ofstream fPlotDrops = std::ofstream ("drops.plotme", std::ios::out | std::ios::app);
 static void
 DropTrace (std::string context, Ptr<Packet> pkt)
 {
-    std::ofstream fPlotSst = std::ofstream ("drops.plotme", std::ios::out | std::ios::app);
-    fPlotSst << Simulator::Now ().GetSeconds () << std::endl;
-    fPlotSst.close ();
+    fPlotDrops << Simulator::Now ().GetSeconds () << std::endl;
 }
 
 // Trace Function for cwnd
@@ -128,8 +133,8 @@ int main(int argc, char *argv[])
     std::string socketType;
 
     bool dpdkMode = true;
-    bool ping = false;
-    int dpdkTimeoutFactor = 128;
+    bool ping = true;
+    int dpdkTimeout = 2000;
 
     double samplingPeriod = 0.5; // s
 
@@ -144,7 +149,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("data-rate", "Data rate defaults to 1000Mb/s", dataRate);
     cmd.AddValue("transportPort", "Transport protocol to use: Tcp, Udp", transportProt);
     cmd.AddValue("dpdkMode", "Enable the netmap emulation mode", dpdkMode);
-    cmd.AddValue("dpdkTimeoutFactor", "Timeout factor to use in dpdkMode. timeout = 1s / k, k = Timeout factor", dpdkTimeoutFactor);
+    cmd.AddValue("dpdkTimeout", "Tx Timeout to use in dpdkMode. (in microseconds)", dpdkTimeout);
     cmd.AddValue("ping", "Enable server ping client side", ping);
     cmd.Parse(argc, argv);
 
@@ -224,7 +229,7 @@ int main(int argc, char *argv[])
     if (dpdkMode)
     {
         Ptr<DpdkNetDevice> dpdkNetDevice = StaticCast<DpdkNetDevice>(device);
-        dpdkNetDevice->SetTimeoutFactor(dpdkTimeoutFactor);
+        dpdkNetDevice->SetTimeout (dpdkTimeout);
     }
 
     NS_LOG_INFO("Add Internet Stack");
@@ -290,16 +295,17 @@ int main(int argc, char *argv[])
 
         if (ping)
         {
+            printf("Adding ping app\n");
             // add ping application
             Ptr<V4Ping> app = CreateObject<V4Ping>();
             app->SetAttribute("Remote", Ipv4AddressValue(remoteIp));
             app->SetAttribute("Verbose", BooleanValue(true));
             app->SetAttribute("Interval", TimeValue(Seconds(samplingPeriod)));
             node->AddApplication(app);
-            app->SetStartTime(Seconds(5.0));
-            app->SetStopTime(Seconds(27.0));
+            app->SetStartTime(Seconds(6.0));
+            app->SetStopTime(Seconds(106.0));
 
-            Config::Connect("/Names/app/Rtt", MakeCallback(&PingRtt));
+            Config::Connect("/NodeList/*/ApplicationList/*/$ns3::V4Ping/Rtt", MakeCallback(&PingRtt));
         }
 
         emu.EnablePcap("fd-client", device);
@@ -317,6 +323,12 @@ int main(int argc, char *argv[])
     getchar();
     Simulator::Run();
     Simulator::Destroy();
+
+    fPlotCwnd.close();
+    fPlotSst.close();
+    fPlotDrops.close();
+    fPlotInflight.close();
+    fPing.close();
 
     return 0;
 }
