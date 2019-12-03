@@ -289,7 +289,25 @@ void
 DpdkNetDevice::HandleTx ()
 {
   int queueId = 0;
-  rte_eth_tx_buffer_flush (m_portId, queueId, m_txBuffer);
+  // $$
+  int sent = rte_eth_tx_buffer_flush (m_portId, queueId, m_txBuffer);
+  if(sent>0){
+    // m_queue->NotifyTransmittedBytes(sent*length);
+    m_queue->Wake();
+  }
+}
+
+// $$
+void
+DpdkNetDevice::TxRequeueErrCallback (struct rte_mbuf **unsent, uint16_t count, void *userdata)
+{
+  struct rte_eth_dev_tx_buffer * txBuffer = (rte_eth_dev_tx_buffer*) userdata;
+  int queueId = 0;
+  int portId = 0;
+  for(int i=0;i<count;i++)
+  {
+    rte_eth_tx_buffer(portId, queueId, txBuffer, unsent[i]);
+  }
 }
 
 void
@@ -495,6 +513,10 @@ DpdkNetDevice::InitDpdk (int argc, char** argv)
   rte_eth_tx_buffer_init (m_txBuffer, MAX_PKT_BURST);
   rte_eth_tx_buffer_init (m_rxBuffer, MAX_PKT_BURST);
 
+  // $$
+  // Setting the callback function to re-queue the packets after burst from m_txBuffer
+  rte_eth_tx_buffer_set_err_callback(m_txBuffer, TxRequeueErrCallback, m_txBuffer);
+
   NS_LOG_INFO ("Start the device");
   ret = rte_eth_dev_start (m_portId);
   if (ret < 0)
@@ -584,8 +606,16 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 {
   struct rte_mbuf ** pkt = new struct rte_mbuf*[1];
   int queueId = 0;
+  // $$
+  int pkt_buffered_res = -1;
 
   if (buffer == NULL || m_txBuffer->length == MAX_PKT_BURST) {
+    return -1;
+  }
+
+  // $$
+  if (m_queue->IsStopped ()){
+    // The device queue is stopped and we cannot write other packets
     return -1;
   }
 
@@ -594,12 +624,33 @@ DpdkNetDevice::Write(uint8_t *buffer, size_t length)
 
   pkt[0]->pkt_len = length;
   pkt[0]->data_len = length;
-  rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt[0]);
+  pkt_buffered_res = rte_eth_tx_buffer(m_portId, queueId, m_txBuffer, pkt[0]);
 
+  // $$
+  if(pkt_buffered_res == 0){
+    // If response if zero it means that the packet was successfully buffered and that the m_txBuffer was not burst
+    // We notify the NetDeviceQueue of the amount of data queued(=length bytes)
+    m_queue->NotifyQueuedBytes(length);
+  }
+
+  // $$
+  if(pkt_buffered_res > 0){
+    // If the response is greater than zero, it means that the buffer was burst and it sent those many packets
+    m_queue->NotifyQueuedBytes(length);
+    m_queue->NotifyTransmittedBytes(pkt_buffered_res*length);
+  }
+
+  // $$
   if (m_txBuffer->length == 1) {
     // If this is a first packet in buffer, schedule a tx.
     Simulator::Cancel (m_txEvent);
     m_txEvent = Simulator::Schedule ( Time ( MicroSeconds(m_txTimeout) ), &DpdkNetDevice::HandleTx, this);
+  }
+
+  // $$
+  if(m_txBuffer->length == MAX_PKT_BURST){
+    // The Buffer is now full, we will stop the m_queue
+    m_queue->Stop();
   }
 
   return length;
