@@ -1,0 +1,6 @@
+1 "FdNetDevice\nat 100Mbps"	-1
+2 "NetmapNetDevice\nat 100Mbps"	-1
+3 "DpdkNetDevice\nat 100Mbps"	-1
+5 "FdNetDevice\nat 1000Mbps"	-1
+6 "NetmapNetDevice\nat 1000Mbps"	-1
+7 "DpdkNetDevice\nat 1000Mbps"	-1

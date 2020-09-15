@@ -1,0 +1,23 @@
+set term postscript eps color blacktext "Helvetica" 24
+# set terminal pngcairo enhanced color lw 3 size 1000,800 font 'Arial-Bold'
+set xrange [0:8]
+set yrange [560:1010]
+set output "throughput-candlestick-1000.eps"
+set title "Throughput comparison for TCP and UDP\nat 1000Mbps Bandwidth"
+set format x ""
+set boxwidth 0.2
+set key horizontal center top
+set ylabel "Throughput (Mbits/sec)"
+plot 'tcp/1000/throughput-fd-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 1 lw 3 title 'EmuFd' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'tcp/1000/throughput-nm-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 2 lw 3 title 'Netmap' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'tcp/1000/throughput-dpdk-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 3 lw 3 title 'Dpdk  ' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'udp/1000/throughput-fd-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 1 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'udp/1000/throughput-nm-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 2 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'udp/1000/throughput-dpdk-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 3 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'x-axis-prot.plotme' using 1:3:xtic(2) with points notitle

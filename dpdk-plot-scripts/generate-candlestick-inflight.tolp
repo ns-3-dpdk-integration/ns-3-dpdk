@@ -1,0 +1,23 @@
+set term postscript eps color blacktext "Helvetica" 24
+# set terminal pngcairo enhanced color lw 3 size 1000,800 font 'Arial-Bold'
+set xrange [0:8]
+set yrange [106000:134000]
+set output "inflight-candlestick.eps"
+set title "Bytes in flight comparison for TCP"
+set format x ""
+set boxwidth 0.2
+set key horizontal center top samplen 3
+set ylabel "Inflight (bytes)"
+plot '100/inflight-fd-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 1 lw 3 title 'EmuFd' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     '100/inflight-nm-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 2 lw 3 title 'Netmap' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     '100/inflight-dpdk-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 3 lw 3 title 'Dpdk  ' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     '1000/inflight-fd-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 1 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     '1000/inflight-nm-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 2 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     '1000/inflight-dpdk-candlestick.plotme' using 1:3:2:6:5 with candlesticks lt 3 lw 3 title '' whiskerbars, \
+     ''                       using 1:4:4:4:4 with candlesticks lt -1 lw 3 notitle, \
+     'x-axis-bw.plotme' using 1:3:xtic(2) with points notitle
