@@ -70,18 +70,11 @@ gnuplot generate-candlestick-inflight.tolp
 
 1. Genarate plotme
 
-Run onoff example for UDP with ping enabled. Store the output of ns-3 example to a file.
-
-Convert this output as TSV with following columns:
-```
-serial_no	simulation_time		ping_seconds
-```
-
-TODO: write script for this
+Run onoff example for UDP with ping enabled. It will generate `ping.plotme`
 
 2. Generate Candlestick
 ```
-cat udp-ping.plotme | datamash min 1 q1 1 median 1 q3 1 max 1 > ping-candlestick.plotme
+cat ping.plotme | datamash min 1 q1 1 median 1 q3 1 max 1 > ping-candlestick.plotme
 ```
 
 3. Organize
