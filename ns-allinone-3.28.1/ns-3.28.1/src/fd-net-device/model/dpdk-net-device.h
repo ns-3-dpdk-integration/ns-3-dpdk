@@ -181,6 +181,12 @@ namespace ns3
    */
     void HandleTx();
 
+    // $$
+    /**
+   * Error callback to Re-Queue the packets into the m_txBuffer after burst
+   */
+    static void TxRequeueErrCallback(struct rte_mbuf **unsent, uint16_t count, void *userdata);
+
     /**
    * Receive packets in burst from the nic to the rte_ring.
    */
